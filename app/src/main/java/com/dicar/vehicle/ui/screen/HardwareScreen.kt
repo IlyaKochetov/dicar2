@@ -201,8 +201,8 @@ private fun LivePanel(live: LiveStats?) {
                 label = if (blocked) "App usage" else "Total usage",
                 headline = HwFormat.percent(if (blocked) live?.appLoad else live?.totalLoad),
                 caption = buildString {
-                    append("${cores.count { it.online }} / ${cores.size} 核在线")
-                    if (blocked) append(" · 系统禁止应用读取 /proc/stat，无法统计全局占用")
+                    append("${cores.count { it.online }} / ${cores.size} cores online")
+                    if (blocked) append(" · system blocks /proc/stat; global CPU usage unavailable")
                 },
                 fraction = (if (blocked) live?.appLoad else live?.totalLoad)?.div(100f),
             )
@@ -234,7 +234,7 @@ private fun LivePanel(live: LiveStats?) {
             )
             HwRow("Available", HwFormat.bytes(live?.memAvailable))
             HwRow("Page cache", HwFormat.bytes(live?.memCached))
-            HwRow("Swap 已用", HwFormat.bytes(
+            HwRow("Swap used", HwFormat.bytes(
                 live?.let { s ->
                     val t = s.swapTotal ?: return@let null
                     val f = s.swapFree ?: return@let null
