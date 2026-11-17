@@ -28,58 +28,58 @@ fun collectDisplay(context: Context): HwSection {
 
     return section(HwCategory.DISPLAY) {
         block {
-            item("分辨率", if (metrics.widthPixels > 0) "${metrics.widthPixels} × ${metrics.heightPixels}" else null)
-            item("像素密度", metrics.densityDpi.takeIf { it > 0 }?.let { "$it dpi（${densityBucket(it)}）" })
-            item("实测密度", if (metrics.xdpi > 0) "x ${metrics.xdpi.toInt()} / y ${metrics.ydpi.toInt()} dpi" else null)
-            item("对角线", physicalInches(metrics))
-            item("缩放倍率", metrics.density.takeIf { it > 0 }?.let { "${it}×" })
-            item("逻辑尺寸", "${config.screenWidthDp} × ${config.screenHeightDp} dp")
-            item("最小宽度", "${config.smallestScreenWidthDp} dp")
-            item("屏幕档位", layoutSize(config))
+            item("Resolution", if (metrics.widthPixels > 0) "${metrics.widthPixels} × ${metrics.heightPixels}" else null)
+            item("Pixel density", metrics.densityDpi.takeIf { it > 0 }?.let { "$it dpi（${densityBucket(it)}）" })
+            item("Measured density", if (metrics.xdpi > 0) "x ${metrics.xdpi.toInt()} / y ${metrics.ydpi.toInt()} dpi" else null)
+            item("Diagonal", physicalInches(metrics))
+            item("Scale factor", metrics.density.takeIf { it > 0 }?.let { "${it}×" })
+            item("Logical size", "${config.screenWidthDp} × ${config.screenHeightDp} dp")
+            item("Smallest width", "${config.smallestScreenWidthDp} dp")
+            item("Screen category", layoutSize(config))
         }
 
-        block("刷新与色彩") {
-            item("当前刷新率", main?.refreshRate?.let { "%.1f Hz".format(it) })
+        block("Refresh and color") {
+            item("Current refresh rate", main?.refreshRate?.let { "%.1f Hz".format(it) })
             val modes = main?.supportedModes.orEmpty()
-            item("显示模式", modes.size.takeIf { it > 0 }?.let { "$it 种" })
+            item("Display modes", modes.size.takeIf { it > 0 }?.let { "$it modes" })
             modes.sortedByDescending { it.refreshRate }.take(MAX_MODES).forEach { m ->
-                item("  模式 ${m.modeId}", "${m.physicalWidth} × ${m.physicalHeight} @ %.1f Hz".format(m.refreshRate))
+                item("  Mode ${m.modeId}", "${m.physicalWidth} × ${m.physicalHeight} @ %.1f Hz".format(m.refreshRate))
             }
-            item("广色域", config.isScreenWideColorGamut)
+            item("Wide color gamut", config.isScreenWideColorGamut)
             item("HDR", config.isScreenHdr)
             val hdrTypes = main?.hdrCapabilities?.supportedHdrTypes?.toList().orEmpty()
-            itemIfPresent("HDR 格式", hdrTypes.takeIf { it.isNotEmpty() }?.joinToString("、") { hdrName(it) })
+            itemIfPresent("HDR formats", hdrTypes.takeIf { it.isNotEmpty() }?.joinToString(", ") { hdrName(it) })
             flag(
-                "夜间模式",
+                "Night mode",
                 (config.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
-                yes = "开启", no = "关闭",
+                yes = "Enabled", no = "Disabled",
             )
         }
 
-        block("状态") {
-            item("方向", orientation(main?.rotation))
-            item("显示状态", displayState(main?.state))
+        block("Status") {
+            item("Orientation", orientation(main?.rotation))
+            item("Display state", displayState(main?.state))
             item(
-                "亮度",
+                "Brightness",
                 runCatching {
                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                 }.getOrNull()?.let { "$it / 255" },
             )
             item(
-                "亮度模式",
+                "Brightness mode",
                 runCatching {
                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE)
-                }.getOrNull()?.let { if (it == 1) "自动" else "手动" },
+                }.getOrNull()?.let { if (it == 1) "Automatic" else "Manual" },
             )
             // DisplayCutout 本身是 API 28 加的，但从 Display 上直接取要到 API 29
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val cutout = main?.cutout
-                item("刘海/挖孔", if (cutout == null) "无" else "有（${cutout.boundingRects.size} 处）")
+                item("Notch / cutout", if (cutout == null) "None" else "Present (${cutout.boundingRects.size} regions)")
             }
         }
 
         if (displays.size > 1) {
-            block("其他显示设备") {
+            block("Other displays") {
                 displays.filter { it.displayId != main?.displayId }.forEach { d ->
                     val m = DisplayMetrics().also { d.getRealMetrics(it) }
                     item("#${d.displayId} ${d.name}", "${m.widthPixels} × ${m.heightPixels} · ${displayState(d.state)}")
@@ -87,19 +87,19 @@ fun collectDisplay(context: Context): HwSection {
             }
         }
 
-        block("触摸") {
-            item("触摸屏", pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN))
+        block("Touch") {
+            item("Touchscreen", pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN))
             item(
-                "多点触控",
+                "Multitouch",
                 when {
-                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH_JAZZHAND) -> "支持（5 点以上）"
-                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH_DISTINCT) -> "支持（2 点独立）"
-                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH) -> "支持（基础）"
-                    else -> "不支持"
+                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH_JAZZHAND) -> "Supported (5+ points)"
+                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH_DISTINCT) -> "Supported (2 independent points)"
+                    pm.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN_MULTITOUCH) -> "Supported (basic)"
+                    else -> "Unsupported"
                 },
             )
-            item("压感", pm.hasSystemFeature("android.hardware.sensor.stylus"))
-            item("输入设备", inputDevices())
+            item("Pressure sensitivity", pm.hasSystemFeature("android.hardware.sensor.stylus"))
+            item("Input devices", inputDevices())
         }
     }
 }
@@ -107,7 +107,7 @@ fun collectDisplay(context: Context): HwSection {
 private fun inputDevices(): String? {
     val ids = runCatching { android.view.InputDevice.getDeviceIds() }.getOrNull() ?: return null
     val names = ids.toList().mapNotNull { android.view.InputDevice.getDevice(it)?.name }
-    return names.takeIf { it.isNotEmpty() }?.joinToString("、")
+    return names.takeIf { it.isNotEmpty() }?.joinToString(", ")
 }
 
 /** 对角线英寸。xdpi/ydpi 在部分车机上是厂商乱填的，明显离谱就不显示。 */
@@ -125,15 +125,15 @@ private fun densityBucket(dpi: Int): String = when {
     dpi <= 320 -> "xhdpi"
     dpi <= 480 -> "xxhdpi"
     dpi <= 640 -> "xxxhdpi"
-    else -> "超高密度"
+    else -> "Extra-high density"
 }
 
 private fun layoutSize(config: Configuration): String =
     when (config.screenLayout and Configuration.SCREENLAYOUT_SIZE_MASK) {
-        Configuration.SCREENLAYOUT_SIZE_SMALL -> "小屏"
-        Configuration.SCREENLAYOUT_SIZE_NORMAL -> "标准"
-        Configuration.SCREENLAYOUT_SIZE_LARGE -> "大屏"
-        Configuration.SCREENLAYOUT_SIZE_XLARGE -> "超大屏"
+        Configuration.SCREENLAYOUT_SIZE_SMALL -> "Small"
+        Configuration.SCREENLAYOUT_SIZE_NORMAL -> "Normal"
+        Configuration.SCREENLAYOUT_SIZE_LARGE -> "Large"
+        Configuration.SCREENLAYOUT_SIZE_XLARGE -> "Extra large"
         else -> HwItem.UNKNOWN
     }
 
@@ -146,11 +146,11 @@ private fun orientation(rotation: Int?): String = when (rotation) {
 }
 
 private fun displayState(state: Int?): String = when (state) {
-    Display.STATE_ON -> "点亮"
-    Display.STATE_OFF -> "熄灭"
-    Display.STATE_DOZE, Display.STATE_DOZE_SUSPEND -> "低功耗显示"
+    Display.STATE_ON -> "On"
+    Display.STATE_OFF -> "Off"
+    Display.STATE_DOZE, Display.STATE_DOZE_SUSPEND -> "Doze mode"
     Display.STATE_VR -> "VR"
-    Display.STATE_ON_SUSPEND -> "点亮（已挂起）"
+    Display.STATE_ON_SUSPEND -> "On (suspended)"
     else -> HwItem.UNKNOWN
 }
 
@@ -159,7 +159,7 @@ private fun hdrName(type: Int): String = when (type) {
     Display.HdrCapabilities.HDR_TYPE_HDR10 -> "HDR10"
     Display.HdrCapabilities.HDR_TYPE_HLG -> "HLG"
     Display.HdrCapabilities.HDR_TYPE_HDR10_PLUS -> "HDR10+"
-    else -> "类型 $type"
+    else -> "Type $type"
 }
 
 /** 模式太多时只列最快的几个，完整列表意义不大。 */
