@@ -83,7 +83,7 @@ fun Car3dView(state: VehicleState, modifier: Modifier = Modifier) {
             },
         )
         Text(
-            "拖动旋转 · 双指缩放",
+            "Drag to rotate · Pinch to zoom",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),
