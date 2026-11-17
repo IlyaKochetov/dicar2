@@ -61,9 +61,9 @@ import java.util.Locale
 
 /** 首页的几种视图。默认孪生图。 */
 enum class MainTab(val label: String, val glyph: String) {
-    TWIN("孪生", "⬢"),
-    CARDS("卡片", "▦"),
-    HARDWARE("硬件", "▣"),
+    TWIN("Twin", "⬢"),
+    CARDS("Cards", "▦"),
+    HARDWARE("Hardware", "▣"),
 }
 
 @Composable
@@ -225,14 +225,14 @@ private fun SideRail(
             selected = floatingOn,
             onClick = onToggleFloating,
             icon = { Text("◳", fontSize = 20.sp) },
-            label = { Text("悬浮窗") },
+            label = { Text("Overlay") },
             colors = railColors,
         )
         NavigationRailItem(
             selected = false,
             onClick = onSettings,
             icon = { Text("⚙", fontSize = 20.sp) },
-            label = { Text("设置") },
+            label = { Text("Settings") },
             colors = railColors,
         )
         Spacer(Modifier.height(12.dp))
@@ -291,7 +291,7 @@ private fun StatusStrip(
         )
         SourceChip(state, intervalMs)
         Text(
-            "车外 ${Format.num(state.outsideTemp, 0, "℃")}",
+            "Outside ${Format.num(state.outsideTemp, 0, "℃")}",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -304,7 +304,7 @@ private fun StatusStrip(
         )
         if (compact) return@Row
         TextButton(onClick = onToggleFloating) {
-            Text(if (floatingOn) "关闭悬浮窗" else "悬浮窗", maxLines = 1)
+            Text(if (floatingOn) "Close overlay" else "Overlay", maxLines = 1)
         }
         TextButton(onClick = onSettings) { Text("⚙", maxLines = 1) }
     }
@@ -316,11 +316,11 @@ private fun powertrainStatus(state: VehicleState): Pair<String, androidx.compose
     val scheme = MaterialTheme.colorScheme
     val motor = state.displayRpm
     return when {
-        state.engineRpm != null && state.engineRpm > ENGINE_IDLE_RPM -> "发动机运行中" to scheme.primary
-        state.engineRpm != null -> "发动机已停" to scheme.outline
-        motor != null && kotlin.math.abs(motor) > MOTOR_IDLE_RPM -> "电机驱动中" to scheme.secondary
-        motor != null -> "电机待机" to scheme.outline
-        else -> "动力 ${Format.NA}" to scheme.outline
+        state.engineRpm != null && state.engineRpm > ENGINE_IDLE_RPM -> "Engine running" to scheme.primary
+        state.engineRpm != null -> "Engine stopped" to scheme.outline
+        motor != null && kotlin.math.abs(motor) > MOTOR_IDLE_RPM -> "Motor driving" to scheme.secondary
+        motor != null -> "Motor idle" to scheme.outline
+        else -> "Powertrain ${Format.NA}" to scheme.outline
     }
 }
 
@@ -350,7 +350,7 @@ private fun nowHhMm(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).f
 private fun SourceChip(state: VehicleState, intervalMs: Long) {
     val ok = state.source != null && state.error == null
     Text(
-        text = (state.source?.label ?: "无数据源") + " · ${intervalMs}ms",
+        text = (state.source?.label ?: "No data source") + " · ${intervalMs}ms",
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
         color = if (ok) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
@@ -369,7 +369,7 @@ private const val MOTOR_IDLE_RPM = 50
 @Composable
 private fun ErrorBanner(message: String) {
     Text(
-        text = "暂不支持 / 数据不可用：$message",
+        text = "Unsupported / data unavailable: $message",
         color = MaterialTheme.colorScheme.onErrorContainer,
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier
