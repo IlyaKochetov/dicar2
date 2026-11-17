@@ -124,7 +124,7 @@ fun collectStorage(context: Context): HwSection {
             block("Mounted file systems") {
                 item("Mount count", "${mounts.size} mounts")
                 interesting.distinctBy { it.point }.forEach { m ->
-                    item(m.point, "${m.fsType}（${if ("ro" in m.options) "只读" else "可写"}）")
+                    item(m.point, "${m.fsType}（${if ("ro" in m.options) "read-only" else "writable"}）")
                 }
             }
         }
