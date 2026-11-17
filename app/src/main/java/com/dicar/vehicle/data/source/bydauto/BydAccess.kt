@@ -5,20 +5,20 @@ import com.dicar.vehicle.data.source.bydauto.BydDevice.CallResult
 import com.dicar.vehicle.data.source.bydauto.adb.AdbTransport
 
 /**
- * 读写车辆数据的底层通道抽象，两种实现：
- * - [InProcessBydAccess]：App 自身进程直接反射（多数 DiLink 会被签名权限拒绝）；
- * - [AdbBydAccess]：经车机本机 adbd 起的辅助进程以调试身份读写（真正能拿到数据的那条路）。
+ * Low-level vehicle data access with two implementations:
+ * - [InProcessBydAccess]: reflection in the app process (signature permissions deny access on many DiLink systems);
+ * - [AdbBydAccess]: reads and writes through a helper launched via the head unit's local adbd.
  *
- * [BydAutoDataSource] 按「哪条通道能用」自动选择，上层无感知。
- * 所有方法只在 Repository 的单 IO 线程上调用。
+ * [BydAutoDataSource] selects an available channel transparently.
+ * All methods are called on the repository's single IO thread.
  */
 interface BydAccess {
     val label: String
 
-    /** 便宜的可用性探测（不建立完整会话）。 */
+    /** Low-cost availability probe without establishing a full session. */
     fun probeAvailable(): Boolean
 
-    /** 建立/校验通道；不可用时抛异常（消息会展示给用户）。 */
+    /** Establish or validate the channel; throw with a user-visible message if unavailable. */
     fun ensureReady()
 
     fun readGetter(className: String, method: String, args: IntArray): CallResult
@@ -26,7 +26,7 @@ interface BydAccess {
     fun callSetter(className: String, method: String, args: IntArray): CallResult
     fun writeFid(devId: Int, fid: Int, value: Int): CallResult
 
-    /** 一次读多项。默认逐条读；跨进程通道应覆盖成单次往返。 */
+    /** Read multiple items; the default reads individually, while cross-process channels should use one round trip. */
     fun readBatch(requests: List<RawReq>): List<CallResult> = requests.map {
         when (it) {
             is RawReq.Getter -> readGetter(it.className, it.method, it.args)
@@ -37,13 +37,13 @@ interface BydAccess {
     fun close() {}
 }
 
-/** 与 [BydApiMap.Src] 解耦的底层读请求（FID 符号已解析成本车数值）。 */
+/** Low-level read request independent of [BydApiMap.Src], with FID resolved for this vehicle. */
 sealed interface RawReq {
     data class Getter(val className: String, val method: String, val args: IntArray) : RawReq
     data class Fid(val devId: Int, val fid: Int, val isFloat: Boolean) : RawReq
 }
 
-/** 进程内直连。FID 读写走 BYDAutoDeviceManager（同样用 BydDevice 包一层）。 */
+/** In-process access. FID reads and writes use BYDAutoDeviceManager wrapped by BydDevice. */
 class InProcessBydAccess(context: Context) : BydAccess {
 
     override val label = "进程内"
@@ -54,7 +54,7 @@ class InProcessBydAccess(context: Context) : BydAccess {
     private val manager get() = device(BydApiMap.DEVICE_MANAGER_CLASS)
 
     override fun probeAvailable(): Boolean =
-        // 能读到一个数值（哪怕是错误码）就说明权限没被拒；被拒会是 Error
+        // Reading a value, even an error code, means permission was not denied; denial returns Error.
         readGetter("android.hardware.bydauto.statistic.BYDAutoStatisticDevice", "getElecPercentageValue", IntArray(0)) is CallResult.Value
 
     override fun ensureReady() = Unit
@@ -69,14 +69,14 @@ class InProcessBydAccess(context: Context) : BydAccess {
     override fun writeFid(devId: Int, fid: Int, value: Int) = manager.call("setInt", devId, fid, value)
 }
 
-/** 经辅助进程（调试身份）读写。 */
+/** Read and write through the helper process under the debugging identity. */
 class AdbBydAccess(private val transport: AdbTransport) : BydAccess {
 
     override val label = "无线调试"
 
     override fun probeAvailable(): Boolean = transport.isPortOpen()
 
-    /** 会话还活着就直接复用，不每次都 PING（省一次往返）。 */
+    /** Reuse a live session without PING on every call to save a round trip. */
     override fun ensureReady() = transport.ensureConnected()
 
     override fun readGetter(className: String, method: String, args: IntArray) =
@@ -110,7 +110,7 @@ class AdbBydAccess(private val transport: AdbTransport) : BydAccess {
     private fun parse(reply: String) = parseReply(reply)
 
     companion object {
-        /** 解析辅助进程应答（协议见 HelperMain.render）。 */
+        /** Parse the helper response; see HelperMain.render for the protocol. */
         internal fun parseReply(reply: String): CallResult {
             val sp = reply.indexOf(' ')
             val tag = if (sp < 0) reply else reply.substring(0, sp)

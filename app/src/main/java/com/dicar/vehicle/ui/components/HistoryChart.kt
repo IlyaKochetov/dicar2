@@ -24,19 +24,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.dicar.vehicle.util.Format
 
-/** 一条曲线的数据与样式。 */
+/** Data and styling for one series. */
 data class ChartSeries(
     val name: String,
     val unit: String,
     val color: Color,
     val points: List<Float?>,
-    /** 固定下界；null 表示按数据自适应。功率这类有正负的量固定 0 基线更好读。 */
+    /** Fixed lower bound; null adapts to the data. A zero baseline improves readability for signed values such as power. */
     val baseline: Float? = null,
 )
 
 /**
- * 多条曲线共用一张图：每条曲线各自归一化到自己的量程，
- * 因为车速(km/h)和功率(kW)量纲不同，放一起只看趋势。
+ * Multiple series share a chart, each normalized to its own range.
+ * Speed (km/h) and power (kW) have different units, so the chart compares trends only.
  */
 @Composable
 fun HistoryChart(
@@ -51,8 +51,8 @@ fun HistoryChart(
 }
 
 /**
- * 图例。[vertical] = true 时一行一条，用于图表在右侧、图例靠左竖排的底栏布局。
- * 每条都带当前值，曲线本身只给趋势，具体数字看图例。
+ * Legend. With [vertical] true, each series gets a row for the bottom bar layout.
+ * Each entry shows the current value; the curves show trends.
  */
 @Composable
 fun ChartLegend(
@@ -83,12 +83,12 @@ fun ChartLegend(
     }
 }
 
-/** 只画线的那块画布，不带图例，方便底栏这种图例和图分开摆的布局复用。 */
+/** Canvas containing only the lines, for layouts that position the legend separately. */
 @Composable
 fun ChartCanvas(series: List<ChartSeries>, modifier: Modifier = Modifier) {
     val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
     Canvas(modifier) {
-        // 横向网格
+        // Horizontal grid
         val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 10f))
         for (i in 0..2) {
             val y = size.height * i / 2f
@@ -112,7 +112,7 @@ fun ChartCanvas(series: List<ChartSeries>, modifier: Modifier = Modifier) {
             var started = false
             pts.forEachIndexed { i, v ->
                 if (v == null) {
-                    started = false // 断点：数据缺失处断开，不要连成直线骗人
+                    started = false // Break the line at missing data rather than implying continuity
                     return@forEachIndexed
                 }
                 val x = dx * i

@@ -4,11 +4,11 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * 极简 dex 解析：只读 header 和 type_ids，列出所有类型描述符（如 "Landroid/hardware/bydauto/ac/BYDAutoAcDevice;"）。
- * 用来在车机 framework jar 里找 bydauto 类，不依赖已废弃且需要 dalvik-cache 写权限的 DexFile API。
+ * Minimal dex parser: read the header and type_ids to list type descriptors such as "Landroid/hardware/bydauto/ac/BYDAutoAcDevice;".
+ * Find bydauto classes in head-unit framework jars without the deprecated DexFile API and dalvik-cache write access.
  *
- * dex 格式：header 0x3C = string_ids_off，0x40 = type_ids_size，0x44 = type_ids_off；
- * type_id = string 索引；string_id = string_data 偏移；string_data = uleb128 长度 + MUTF-8 + '\0'。
+ * Dex format: header 0x3C = string_ids_off, 0x40 = type_ids_size, 0x44 = type_ids_off;
+ * type_id = string index; string_id = string_data offset; string_data = uleb128 length + MUTF-8 + '\0'.
  */
 object DexTypeScanner {
 
@@ -29,7 +29,7 @@ object DexTypeScanner {
         for (i in 0 until typeIdsSize) {
             val stringIdx = buf.getInt(typeIdsOff + i * 4)
             var pos = buf.getInt(stringIdsOff + stringIdx * 4)
-            while (dex[pos].toInt() and 0x80 != 0) pos++ // 跳过 uleb128 长度
+            while (dex[pos].toInt() and 0x80 != 0) pos++ // Skip uleb128 length
             pos++
             if (!startsWith(dex, pos, prefixBytes)) continue
             var end = pos

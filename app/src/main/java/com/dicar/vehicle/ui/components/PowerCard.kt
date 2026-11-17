@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.dicar.vehicle.data.model.VehicleState
 import com.dicar.vehicle.util.Format
 
-/** 动力与行驶卡片：F01-F08 + F37 能量流。 */
+/** Driving and powertrain card: F01-F08 and F37 energy flow. */
 @Composable
 fun PowerCard(state: VehicleState, modifier: Modifier = Modifier) {
     DataCard(title = "Driving & powertrain", modifier = modifier, trailing = { GearBadge(state.gear) }) {

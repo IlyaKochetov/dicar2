@@ -7,14 +7,14 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 /**
- * 单个 BYDAuto 类（设备类或 BYDAutoDeviceManager）的反射包装。
+ * Reflection wrapper for one BYDAuto device class or BYDAutoDeviceManager.
  *
- * - 类与实例懒加载，失败后不再重试（同一进程内结果不会变），失败原因保存在 [initError]；
- * - Method 按「方法名 + 参数个数」缓存，查不到记为缺失；
- * - 调用失败只打一次日志，返回 [CallResult.Missing] / [CallResult.Error]，绝不抛给上层。
+ * - Class and instance load lazily; failures are not retried in the same process and are recorded in [initError];
+ * - Methods are cached by name and argument count; missing methods are recorded;
+ * - Failures are logged once and returned as [CallResult.Missing] or [CallResult.Error], never thrown upstream.
  *
- * BYDAuto 的 getter/setter 参数几乎都是 int（区域、位置、档位），所以这里统一用 Int 传参，
- * 只匹配形参全是数值/布尔类型的重载（避免误调 get(int[], Class) 这类同名方法）。
+ * BYDAuto getter/setter arguments are mostly ints (zones, positions, levels), so this uses Int arguments
+ * and matches only numeric or Boolean overloads, avoiding methods such as get(int[], Class).
  */
 class BydDevice(private val context: Context, val className: String) {
 
@@ -29,13 +29,13 @@ class BydDevice(private val context: Context, val className: String) {
     private val methodCache = HashMap<String, Method?>()
     private val reported = HashSet<String>()
 
-    /** getInstance 失败的原因（类不存在时为 null）。 */
+    /** Reason getInstance failed, or null when the class does not exist. */
     var initError: Throwable? = null
         private set
 
     val isAvailable: Boolean get() = obtain() != null
 
-    /** 获取单例：优先 getInstance(Context)，其次 getInstance()。 */
+    /** Get the singleton, preferring getInstance(Context) over getInstance(). */
     @Synchronized
     fun obtain(): Any? {
         if (loaded) return instance
@@ -55,7 +55,7 @@ class BydDevice(private val context: Context, val className: String) {
                 else -> null
             }
         } catch (e: ClassNotFoundException) {
-            null // 非比亚迪系统 / 该车型没有这个设备：正常情况，不打堆栈
+            null // Non-BYD systems or models without this device are normal; do not log a stack trace.
         } catch (e: Throwable) {
             initError = unwrap(e)
             Log.w(TAG, "getInstance failed: $className", initError)
@@ -82,7 +82,7 @@ class BydDevice(private val context: Context, val className: String) {
         }
     }
 
-    /** 读类上的 public static 常量（如区域编号），读不到返回 null。 */
+    /** Read a public static constant such as a zone ID, or null if unavailable. */
     fun constant(name: String): Int? = try {
         (Class.forName(className).getField(name).get(null) as? Number)?.toInt()
     } catch (e: Throwable) {
@@ -94,7 +94,7 @@ class BydDevice(private val context: Context, val className: String) {
         if (methodCache.containsKey(key)) return methodCache[key]
         val found = cls.methods
             .filter { m -> m.name == name && m.parameterTypes.size == argCount && m.parameterTypes.all { it in INT_CONVERTIBLE } }
-            // 有重载时优先全 int 形参的版本
+            // Prefer all-int parameters when overloads exist.
             .sortedByDescending { m -> m.parameterTypes.count { it == Int::class.javaPrimitiveType } }
             .firstOrNull()
         methodCache[key] = found

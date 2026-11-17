@@ -31,7 +31,7 @@ import com.dicar.vehicle.data.model.VehicleState
 import com.dicar.vehicle.data.model.Zone
 import com.dicar.vehicle.util.Format
 
-/** 空调面板对外暴露的操作，由 ViewModel 实现。 */
+/** Operations exposed by the climate panel and implemented by the ViewModel. */
 interface AcActions {
     fun toggleAc()
     fun toggleAcAuto()
@@ -45,7 +45,7 @@ interface AcActions {
     fun glass(zone: GlassZone, open: Boolean)
 }
 
-/** 空调与舒适控制面板：F18-F25 + F38。[pending] 为正在等待回读确认的指令 key。 */
+/** Climate and comfort controls: F18-F25 + F38. [pending] contains command keys awaiting readback confirmation. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AcPanel(
@@ -186,7 +186,7 @@ private fun SeatButton(label: String, level: Int?, pending: Boolean, modifier: M
     )
 }
 
-/** 一行两个玻璃部件的开关。 */
+/** Controls for two glass components in a row. */
 @Composable
 private fun GlassRow(
     zone: GlassZone,

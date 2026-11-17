@@ -1,5 +1,5 @@
 <resources>
-    <!-- 只用于启动窗口；界面颜色由 Compose 的 DiCarTheme 决定 -->
+    <!-- Used only for the launch window; Compose DiCarTheme controls UI colors -->
     <style name="Theme.DiCar" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@color/window_background</item>

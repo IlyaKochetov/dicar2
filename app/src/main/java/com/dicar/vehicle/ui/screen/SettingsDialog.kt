@@ -47,7 +47,7 @@ import com.dicar.vehicle.data.SourceMode
 import com.dicar.vehicle.ui.ProbeUiState
 import kotlin.math.roundToLong
 
-/** 设置：数据源切换（F42 降级）、刷新频率（F40）、BYDAuto 接口探测。 */
+/** Settings: data source selection (F42 fallback), refresh rate (F40), and BYDAuto interface detection. */
 @Composable
 fun SettingsDialog(
     intervalMs: Long,
@@ -214,7 +214,7 @@ fun ProbeResultDialog(probe: ProbeUiState, onDismiss: () -> Unit) {
                 )
                 SelectionContainer {
                     Text(
-                        // 弹窗只显示前一部分，完整内容看文件
+                        // The dialog shows only a preview; the file contains the full content.
                         probe.report.take(20_000),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
@@ -228,10 +228,10 @@ fun ProbeResultDialog(probe: ProbeUiState, onDismiss: () -> Unit) {
     )
 }
 
-/** 项目开源地址，设置页里可以直接点开。 */
+/** Open-source project URL, accessible from settings. */
 /**
- * 更新检查。手动点按为主，「启动时自动检查」默认关——检查会访问 GitHub，
- * 是全 App 唯一一处外部网络请求，不该在用户没表态时默默发出去。
+ * Update checks are primarily manual. Automatic checks at startup default to off because
+ * they contact GitHub, the app's only external network request.
  */
 @Composable
 private fun UpdateSection(
@@ -285,7 +285,7 @@ private fun UpdateSection(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
-            // 走了降级通道时要说明白为什么只有版本号，否则会被当成「这版没写说明」
+            // Explain why only a version number is available when the fallback is used.
             if (release.viaFallback) {
                 Text(
                     "The GitHub API is unavailable. Only the version number could be retrieved; open the release page for notes and downloads.",
@@ -294,8 +294,8 @@ private fun UpdateSection(
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 不在 App 内直接下载安装：那需要 REQUEST_INSTALL_PACKAGES 权限，
-                // 对一个自用工具来说不值当。跳到发布页用车机浏览器下载即可。
+                // Do not install directly in the app: that requires REQUEST_INSTALL_PACKAGES.
+                // Open the release page so the user can download with the head-unit browser.
                 TextButton(onClick = { onOpen(release.pageUrl) }) { Text("View release") }
                 release.apkUrl?.let { url ->
                     TextButton(onClick = { onOpen(url) }) { Text("Download APK") }

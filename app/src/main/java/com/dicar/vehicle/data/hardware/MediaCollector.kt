@@ -7,10 +7,10 @@ import android.os.Build
 import java.util.UUID
 
 /**
- * 编解码器与 DRM。
+ * Codecs and DRM.
  *
- * 列表按「硬件优先、编码/解码分开」整理：硬件编解码能不能跑某个分辨率，
- * 直接决定车机放视频卡不卡，这是同类工具里最被关心的一页。
+ * List hardware codecs first and separate encoding from decoding; hardware resolution support
+ * is relevant to playback performance on the head unit.
  */
 fun collectCodecs(): HwSection {
     val codecs = runCatching {
@@ -49,7 +49,7 @@ fun collectCodecs(): HwSection {
 private fun SectionScope.codecBlock(title: String, list: List<MediaCodecInfo>) {
     if (list.isEmpty()) return
     block(title) {
-        // 硬件的排前面：用户真正关心的是「这台机子硬解能撑到哪」
+        // List hardware codecs first to make hardware decoding capabilities easy to find.
         list.sortedWith(compareByDescending<MediaCodecInfo> { hardware(it) }.thenBy { it.name })
             .forEach { info -> item(info.name, codecSummary(info)) }
     }
@@ -57,7 +57,7 @@ private fun SectionScope.codecBlock(title: String, list: List<MediaCodecInfo>) {
 
 private fun hardware(info: MediaCodecInfo): Boolean =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) info.isHardwareAccelerated
-    // 安卓 10 之前只能看名字：OMX.google.* / c2.android.* 是 AOSP 的软件实现
+    // Before Android 10, identify AOSP software codecs by OMX.google.* / c2.android.* names.
     else !info.name.startsWith("OMX.google.") && !info.name.startsWith("c2.android.")
 
 private fun codecSummary(info: MediaCodecInfo): String {
@@ -72,7 +72,7 @@ private fun codecSummary(info: MediaCodecInfo): String {
             val h = v.supportedHeights.upper
             parts += "Up to $w×$h"
             parts += "${v.getSupportedFrameRatesFor(w, h).upper.toInt()} fps"
-            // 低码率编解码器（h263 上限 384 kbps）整除成 0 会看着像坏了
+            // Avoid integer division producing zero for low-bitrate codecs such as H.263.
             parts += HwFormat.kbps(v.bitrateRange.upper / 1000)
         }
     }
@@ -87,7 +87,7 @@ private fun codecSummary(info: MediaCodecInfo): String {
     return parts.joinToString(" · ")
 }
 
-/** 读 DRM 方案的属性。方案不存在时构造函数就会抛，返回空表即可。 */
+/** Read DRM scheme properties; return an empty map if the scheme constructor fails. */
 private fun drmProps(uuid: UUID): Map<String, String> {
     if (!runCatching { MediaDrm.isCryptoSchemeSupported(uuid) }.getOrDefault(false)) return emptyMap()
     var drm: MediaDrm? = null
@@ -123,7 +123,7 @@ private fun hdcpName(level: Int): String = when (level) {
 }
 
 private val DRM_PROPERTIES = listOf(
-    // L1 = 整条解码链在 TEE 里，能放 1080p 以上的正版流媒体；L3 只能软解，画质被限制
+    // L1 uses the TEE for the protected pipeline; L3 uses software and may have playback quality restrictions.
     "securityLevel" to "Security level",
     "version" to "Version",
     "vendor" to "Vendor",

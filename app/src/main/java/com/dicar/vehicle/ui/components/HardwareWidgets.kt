@@ -27,8 +27,8 @@ import com.dicar.vehicle.data.hardware.HwFormat
 import com.dicar.vehicle.data.hardware.HwItem
 
 /**
- * 实时指标瓦片：一个大数 + 一条细进度条 + 一行注脚。
- * [fraction] 为 null 时只画空条——「读不到」不能画成「0%」。
+ * Live metric tile: a large number, a thin progress bar, and a caption.
+ * A null [fraction] draws an empty bar: unavailable is not 0%.
  */
 @Composable
 fun UsageTile(
@@ -58,7 +58,7 @@ fun UsageTile(
     }
 }
 
-/** 细进度条。不用 LinearProgressIndicator，它在 0 值时还会画一个圆点。 */
+/** Thin progress bar. LinearProgressIndicator draws a dot even at zero. */
 @Composable
 fun ThinBar(fraction: Float?, color: Color, height: Int = 6) {
     Box(
@@ -80,8 +80,8 @@ fun ThinBar(fraction: Float?, color: Color, height: Int = 6) {
 }
 
 /**
- * 一个 CPU 核心一行：编号、型号、当前频率、占用条。
- * 离线的核心整行变灰并标注，省得以为是读数坏了。
+ * One row per CPU core: number, model, current frequency and utilization.
+ * Offline cores are dimmed and labeled so they are not mistaken for faulty readings.
  */
 @Composable
 fun CoreRow(core: CoreLive, modifier: Modifier = Modifier) {
@@ -124,7 +124,7 @@ fun CoreRow(core: CoreLive, modifier: Modifier = Modifier) {
     }
 }
 
-/** 占用越高越醒目：低位保持中性蓝，高位才变橙变红。 */
+/** Higher utilization is more prominent: neutral blue at low levels, orange and red at high levels. */
 @Composable
 fun loadColor(load: Float?): Color = when {
     load == null -> MaterialTheme.colorScheme.outline
@@ -134,7 +134,7 @@ fun loadColor(load: Float?): Color = when {
 }
 
 /**
- * 温度配色。阈值按 SoC 结温习惯取：70℃ 以上开始值得注意，85℃ 以上通常已经在降频。
+ * Temperature colors use typical SoC junction temperature thresholds: attention above 70°C, often throttling above 85°C.
  */
 @Composable
 fun tempColor(celsius: Float?): Color = when {
@@ -144,7 +144,7 @@ fun tempColor(celsius: Float?): Color = when {
     else -> MaterialTheme.colorScheme.secondary
 }
 
-/** 键值对一行，比 [MetricRow] 更紧凑，用于硬件页这种条目极多的场合。 */
+/** Compact key-value row for dense lists such as the hardware page. */
 @Composable
 fun HwRow(label: String, value: String, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -166,7 +166,7 @@ fun HwRow(label: String, value: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** 小标题，比 DataCard 的标题低一级。 */
+/** Subheading below the DataCard title level. */
 @Composable
 fun HwSubtitle(text: String) {
     Text(
@@ -178,7 +178,7 @@ fun HwSubtitle(text: String) {
     )
 }
 
-/** 卡片右上角的条目计数。 */
+/** Item count at the top right of a card. */
 @Composable
 fun CountBadge(count: Int) {
     Text(

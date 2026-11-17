@@ -1,14 +1,13 @@
 package com.dicar.vehicle.data.hardware
 
 /**
- * 把 `/proc/cpuinfo` 里的数字编号和系统属性里的平台代号翻译成人能看懂的名字。
+ * Translate numeric `/proc/cpuinfo` identifiers and platform codes into readable names.
  *
- * 全是查表。表里没有的一律原样返回十六进制 / 代号本身，**绝不猜**——
- * 一个蒙错的「Snapdragon 865」比老老实实写 `sm6125` 有害得多。
+ * These are lookups only: return unknown hexadecimal values or platform codes unchanged rather than guessing.
  */
 object SiliconNames {
 
-    /** `CPU implementer`：ARM 官方给各家分的编号。 */
+    /** `CPU implementer`: vendor identifier assigned by ARM. */
     fun implementer(code: Int?): String? = when (code) {
         null -> null
         0x41 -> "ARM"
@@ -33,10 +32,10 @@ object SiliconNames {
     }
 
     /**
-     * `CPU implementer` + `CPU part` → 核心型号。
+     * `CPU implementer` + `CPU part` → core model.
      *
-     * 同一颗 SoC 里大小核的 part 不同，所以这是区分 big.LITTLE 架构最可靠的办法
-     *  (比按频率分组准：有些芯片大小核最高频一样)。
+     * Part IDs distinguish big and little cores in the same SoC more reliably than frequency,
+     * since some cores share a maximum frequency.
      */
     fun core(implementer: Int?, part: Int?): String? {
         if (part == null) return null
@@ -88,10 +87,10 @@ object SiliconNames {
     )
 
     /**
-     * 平台代号 (`ro.board.platform` / `ro.hardware`)→ 市售名。
+     * Platform code (`ro.board.platform` / `ro.hardware`) → commercial name.
      *
-     * 安卓 12 起有 `Build.SOC_MODEL` 可以直接读，但车机多是安卓 10，只能靠这张表。
-     * automotive芯片 (SA 系列)单独列出来：这个 App 跑的就是车机。
+     * Android 12 exposes `Build.SOC_MODEL`; older head units may require this table.
+     * Automotive chips (SA series) are listed separately for head units.
      */
     fun soc(platform: String?): String? {
         val key = platform?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
@@ -112,7 +111,7 @@ object SiliconNames {
         "mt2712" to "MediaTek MT2712 automotive platform",
         "mt8666" to "MediaTek MT8666 automotive platform",
         "mt8675" to "MediaTek MT8675 automotive platform",
-        // 手机 SoC：车机上常见的几代
+        // Mobile SoCs commonly found in head units
         "msm8953" to "Snapdragon 625 / 626",
         "msm8937" to "Snapdragon 430",
         "msm8940" to "Snapdragon 435",
@@ -147,7 +146,7 @@ object SiliconNames {
         "goldfish" to "Android emulator (Goldfish)",
     )
 
-    /** 常见指令集extensions的中文注解，只标注值得一提的，其余原样列出。 */
+    /** Descriptions of selected instruction-set extensions; list others unchanged. */
     fun featureNote(feature: String): String? = when (feature.lowercase()) {
         "neon", "asimd" -> "SIMD vectors"
         "aes" -> "AES acceleration"

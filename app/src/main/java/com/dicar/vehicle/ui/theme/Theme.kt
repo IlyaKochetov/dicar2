@@ -15,25 +15,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * 「极简白昼」配色：浅灰底、白卡片、细描边、大留白，蓝色作强调色；
- * 电量永远是绿、油量永远是橙、告警永远是红——同一个量在哪一页都是同一个颜色。
+ * Minimal daylight palette: light gray background, white cards, thin outlines and blue accents.
+ * Battery is green, fuel orange and alerts red consistently across screens.
  *
- * 夜间版不是把浅色反相，而是同一套结构换一组色：底色更深、卡片比底色亮一级、
- * 描边降对比，强调色按深色背景重新取（同色相、更亮一点，保证在黑底上也够跳）。
+ * The night palette keeps the same structure with a darker background, lighter cards,
+ * lower-contrast outlines and brighter accents suited to dark surfaces.
  */
 private object Day {
-    val Accent = Color(0xFF0A84FF)       // 强调：车速、转速、驱动功率
-    val Green = Color(0xFF34C759)        // 电量
-    val Orange = Color(0xFFFF9F0A)       // 油量
-    val Red = Color(0xFFFF3B30)          // 告警
+    val Accent = Color(0xFF0A84FF)       // Accent: speed, RPM, drive power
+    val Green = Color(0xFF34C759)        // Battery level
+    val Orange = Color(0xFFFF9F0A)       // Fuel level
+    val Red = Color(0xFFFF3B30)          // Alert
 
     val Background = Color(0xFFEEF1F5)
     val Card = Color(0xFFFFFFFF)
     val CardAlt = Color(0xFFF7F9FB)
-    val Track = Color(0xFFE8ECF1)        // 进度条/表盘底环
+    val Track = Color(0xFFE8ECF1)        // Progress bar / gauge track
     val TrackDeep = Color(0xFFDDE3EA)
     val Text = Color(0xFF0F1419)
-    val Dim = Color(0xFF8A94A3)          // 标签、单位、次要文字
+    val Dim = Color(0xFF8A94A3)          // Labels, units and secondary text
     val Border = Color(0xFFE2E6EC)
     val BorderStrong = Color(0xFFC7CEd8)
 }
@@ -119,7 +119,7 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Night.Border,
 )
 
-/** 车机上手指操作，圆角大一些、字大一些更好按也更好读。 */
+/** Larger corners and text improve touch and readability on the head unit. */
 private val CarShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
@@ -129,11 +129,9 @@ private val CarShapes = Shapes(
 )
 
 /**
- * 关键数字用大字号细字重，标签用小字号浅色。
- *
- * display/headline 一律开 `tnum`（等宽数字）：默认字体里 1 比其他数字窄，
- * 车速从 111 跳到 100 整行宽度会变，后面的单位跟着左右抖。开了这个特性
- * 数字按等宽排版，字形还是正常的无衬线体，不会变成「代码感」的等宽字体。
+ * Important numbers use large light text; labels are smaller and subdued.
+ * Display and headline styles enable `tnum` so changing digits do not shift adjacent units.
+ * The digits retain their normal sans-serif appearance.
  */
 private const val TABULAR = "tnum"
 
@@ -155,7 +153,7 @@ private val CarTypography = Typography().run {
     )
 }
 
-/** 深浅色跟随系统（DiLink 昼夜模式会切换系统 UI mode）。 */
+/** Light and dark themes follow the system UI mode, including DiLink day/night changes. */
 @Composable
 fun DiCarTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -166,22 +164,22 @@ fun DiCarTheme(content: @Composable () -> Unit) {
     )
 }
 
-/** 卡片等容器统一的描边色，低对比但能勾出边界。 */
+/** Low-contrast outline color for cards and other containers. */
 val MaterialTheme.hairline: Color
     @Composable get() = colorScheme.outlineVariant
 
-/** 车身在孪生图里的填充色：白昼是白车身，夜间是比卡片亮一级的深灰。 */
+/** Twin-view body fill: white by day and dark gray slightly lighter than cards at night. */
 val MaterialTheme.carBody: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFF2C3238) else Color.White
 
-/** 玻璃（风挡、天窗、侧窗）：比车身深一档的中性灰。 */
+/** Glass (windscreens, sunroof and side windows): neutral gray darker than the body. */
 val MaterialTheme.carGlass: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFF454D56) else Color(0xFFD4DBE3)
 
 /**
- * 轮胎：两套主题下都是全图最深的一块，保证四个角一眼能定位。
- * 夜间不能真用纯黑——车身外侧那半个轮子正好压在深色背景上，纯黑等于隐形，
- * 所以取一个比背景略亮的值，再配上描边（见 CarDiagram）才看得出轮廓。
+ * Tires are the darkest part in both themes so all four corners remain identifiable.
+ * At night they are slightly lighter than the background and outlined (see CarDiagram)
+ * to keep their outer edges visible.
  */
 val MaterialTheme.carTyre: Color
     @Composable get() = if (isSystemInDarkTheme()) Color(0xFF05070A) else Color(0xFF2B3038)

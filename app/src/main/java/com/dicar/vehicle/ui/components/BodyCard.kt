@@ -15,7 +15,7 @@ import com.dicar.vehicle.data.model.VehicleState
 import com.dicar.vehicle.data.model.Wheels
 import com.dicar.vehicle.util.Format
 
-/** 车身与安全卡片：F26-F32。 */
+/** Body and safety card: F26-F32. */
 @Composable
 fun BodyCard(state: VehicleState, modifier: Modifier = Modifier) {
     val warn = MaterialTheme.colorScheme.tertiary
@@ -48,7 +48,7 @@ fun BodyCard(state: VehicleState, modifier: Modifier = Modifier) {
                 "Driver seat belt", seatbelt(state.seatbeltDriver), Modifier.weight(1f),
                 valueColor = if (state.seatbeltDriver == false) warn else Color.Unspecified,
             )
-            // 副驾没人坐时安全带信号本来就不可信，直接显示「无人」
+            // When the passenger seat is empty, the belt signal is unreliable; show "Unoccupied".
             MetricRow(
                 "Passenger seat belt",
                 if (state.passengerPresent == false) "Unoccupied" else seatbelt(state.seatbeltPassenger),
@@ -65,8 +65,8 @@ fun BodyCard(state: VehicleState, modifier: Modifier = Modifier) {
         SectionLabel("Parking radar")
         val radar = state.radar
         MetricRow("Reverse gear", Format.onOff(radar.reverseSwitchOn))
-        // 逐探头列出来：等级到实际厘米的对应关系还没在实车核对，先原样展示，
-        // 方便对着车位边挪边看哪个探头在变（BydApiMap 里这项标的是 [?]）
+        // List individual probes: the mapping from levels to centimetres has not been verified on a car.
+        // Show raw levels to help identify changing probes (marked [?] in BydApiMap).
         MetricPair("Front left", probe(radar.frontLeft), "Front left-centre", probe(radar.frontLeftMid))
         MetricPair("Front right-centre", probe(radar.frontRightMid), "Front right", probe(radar.frontRight))
         MetricPair("Rear left", probe(radar.rearLeft), "Rear centre", probe(radar.rearMid))
@@ -75,7 +75,7 @@ fun BodyCard(state: VehicleState, modifier: Modifier = Modifier) {
     }
 }
 
-/** 其他信息：F33-F35。 */
+/** Other information: F33-F35. */
 @Composable
 fun MiscCard(state: VehicleState, modifier: Modifier = Modifier) {
     DataCard(title = "Other information", modifier = modifier) {
@@ -116,8 +116,8 @@ private fun WheelGrid(pressure: Wheels<Float>, temp: Wheels<Float>) {
 }
 
 /**
- * 单个雷达探头的读数。车机常量里 0..6 是距离档（越小越近），14 表示安全/无障碍，
- * 其余值按读不到处理。档位和实际厘米的对应关系尚未在实车核对。
+ * Reading from one radar probe. Head-unit constants 0..6 represent distance levels (lower is closer);
+ * 14 means clear. Other values are unavailable. The mapping to centimetres has not been verified on a car.
  */
 private fun probe(level: Int?): String = when {
     level == null -> Format.NA

@@ -16,9 +16,9 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 /**
- * 模拟数据源：没有车机时在模拟器/手机上调 UI 用。
- * 行驶数据随时间正弦变化；空调状态可被控制指令修改，用来验证「乐观更新 + 回读确认」链路。
- * 故意留几个字段为 null（胎温、PM2.5、海拔），用来检查 N/A 展示。
+ * Mock data source for UI development on an emulator or phone without a head unit.
+ * Driving data varies sinusoidally; commands can change climate state to verify optimistic updates and readback.
+ * Tire temperature, PM2.5 and altitude are deliberately null to check N/A display.
  */
 class MockDataSource : VehicleDataSource {
 
@@ -43,8 +43,8 @@ class MockDataSource : VehicleDataSource {
 
     override suspend fun read(): VehicleState {
         val t = (System.currentTimeMillis() - startedAt) / 1000.0
-        // 下限要能真的到 0：原来是 60+40·sin，最低 20 km/h，车永远停不下来，
-        // 于是「驻车 / 倒车」相关的东西（雷达、能量流静止态）在无车调试时全测不到
+        // The lower bound must reach zero so parking, reversing, radar and stationary energy flow
+        // can be exercised without a vehicle.
         val speed = (50 + 62 * sin(t / 9)).toFloat().coerceAtLeast(0f)
         val accel = (35 + 35 * sin(t / 3)).toFloat().coerceIn(0f, 100f)
         val brake = if (accel < 8f) 30f else 0f
@@ -85,8 +85,7 @@ class MockDataSource : VehicleDataSource {
             voltage12V = 13.8f,
             insideTemp = 24.5f,
             outsideTemp = 31.0f,
-            // 车身开合按固定周期轮着来。原来这里全写死 false/0，结果开门动画、
-            // 车窗升降这些联动在无车调试时一次都跑不到，等于没被验收过。
+            // Cycle body openings periodically to exercise door and window animations without a vehicle.
             doors = bodyCycle(t),
             windowPercent = windowCycle(t),
             radar = radarCycle(t, speed),
@@ -97,7 +96,7 @@ class MockDataSource : VehicleDataSource {
             steeringAngle = (15 * sin(t / 2)).toFloat(),
             seatbeltDriver = true,
             seatbeltPassenger = false,
-            passengerPresent = false, // 副驾没人：界面应显示「无人」而不是「未系」
+            passengerPresent = false, // Unoccupied passenger seat: show Unoccupied rather than Unfastened.
             windowAntiPinch = true,
             turnLeft = (t.toInt() % 6) < 1,
             turnRight = false,
@@ -108,7 +107,7 @@ class MockDataSource : VehicleDataSource {
     }
 
     override suspend fun execute(command: VehicleCommand): CommandResult {
-        // 模拟车机下发延迟
+        // Simulate head-unit command latency.
         Thread.sleep(150)
         when (command) {
             is VehicleCommand.Quick -> if (command.action == QuickAction.PURIFY) {
@@ -124,8 +123,8 @@ class MockDataSource : VehicleDataSource {
     }
 
     /**
-     * 车门/两盖的演示循环：每 [BODY_PERIOD] 秒走一轮，依次打开四门、引擎盖、后备箱，
-     * 最后全关。目的是让无车调试也能看到孪生图上的开合动画，而不是永远一台闭合的车。
+     * Door and lid demo: every [BODY_PERIOD] seconds, open each door, hood and trunk in turn,
+     * then close all of them to exercise the twin view without a vehicle.
      */
     private fun bodyCycle(t: Double): Openings {
         val phase = ((t % BODY_PERIOD) / BODY_PERIOD * 7).toInt()
@@ -140,13 +139,12 @@ class MockDataSource : VehicleDataSource {
     }
 
     /**
-     * 泊车雷达演示：低速时当作在倒车，后方探头从「安全」逐步逼近到 0 档再退回。
-     * 原来这里完全不给雷达数据，导致孪生图上的雷达弧和读数在无车调试时根本不会出现。
+     * Radar demo: treat low speed as reversing and move rear probe readings from clear to level 0 and back.
      */
     private fun radarCycle(t: Double, speed: Float): Radar {
         val parking = speed < 12f
         if (!parking) return Radar(reverseSwitchOn = false)
-        // 0..6 来回扫，越小越近
+        // Sweep 0..6 and back; lower is closer.
         val sweep = ((1 - kotlin.math.cos(t / 4)) / 2 * Radar.OBSTACLE_MAX).toInt()
             .coerceIn(Radar.OBSTACLE_MIN, Radar.OBSTACLE_MAX)
         return Radar(
@@ -163,7 +161,7 @@ class MockDataSource : VehicleDataSource {
         )
     }
 
-    /** 车窗演示：左前窗缓慢升降，其余三个各停在一个固定开度。 */
+    /** Window demo: the front-left window moves slowly; the other three stay at fixed openings. */
     private fun windowCycle(t: Double): Wheels<Int> {
         val wave = ((1 - kotlin.math.cos(t / 7)) / 2 * 100).toInt().coerceIn(0, 100)
         return Wheels(fl = wave, fr = 0, rl = 35, rr = 0)

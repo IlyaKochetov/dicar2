@@ -12,12 +12,11 @@ import android.view.Surface
 import kotlin.math.hypot
 
 /**
- * 屏幕。分辨率、刷新率、HDR、触摸能力。
+ * Displays: resolution, refresh rate, HDR and touch capabilities.
  *
- * 车机常常挂着不止一块屏（中控 + 仪表 + HUD），所以这里把 [DisplayManager]
- * 报出来的每一块都列出来，而不是只看主屏。
+ * Head units can have multiple screens, so list every display reported by [DisplayManager].
  */
-@Suppress("DEPRECATION") // getRealMetrics 在 API 31 起被 WindowMetrics 取代，但 minSdk 28 还得靠它
+@Suppress("DEPRECATION") // getRealMetrics was replaced by WindowMetrics in API 31 but supports minSdk 28.
 fun collectDisplay(context: Context): HwSection {
     val dm = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
     val displays = dm?.displays.orEmpty()
@@ -71,7 +70,7 @@ fun collectDisplay(context: Context): HwSection {
                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE)
                 }.getOrNull()?.let { if (it == 1) "Automatic" else "Manual" },
             )
-            // DisplayCutout 本身是 API 28 加的，但从 Display 上直接取要到 API 29
+            // DisplayCutout exists from API 28, but direct access from Display requires API 29.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val cutout = main?.cutout
                 item("Notch / cutout", if (cutout == null) "None" else "Present (${cutout.boundingRects.size} regions)")
@@ -110,7 +109,7 @@ private fun inputDevices(): String? {
     return names.takeIf { it.isNotEmpty() }?.joinToString(", ")
 }
 
-/** 对角线英寸。xdpi/ydpi 在部分车机上是厂商乱填的，明显离谱就不显示。 */
+/** Diagonal in inches; omit implausible vendor-provided xdpi/ydpi values. */
 private fun physicalInches(m: DisplayMetrics): String? {
     if (m.xdpi <= 1f || m.ydpi <= 1f || m.widthPixels <= 0) return null
     val inches = hypot(m.widthPixels / m.xdpi, m.heightPixels / m.ydpi)
@@ -162,5 +161,5 @@ private fun hdrName(type: Int): String = when (type) {
     else -> "Type $type"
 }
 
-/** 模式太多时只列最快的几个，完整列表意义不大。 */
+/** When there are many modes, list only the fastest few. */
 private const val MAX_MODES = 8

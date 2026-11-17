@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  单色图标（Android 13+ 主题图标）：形状同前景，颜色由系统按壁纸着色。
-  108dp 画布，图形落在中间 72dp 安全区内（半径 28 的弧 + 居中的车）。
+  Monochrome icon (Android 13+ themed icons): same shape as the foreground, tinted by the system to match the wallpaper.
+  On the 108dp canvas, artwork fits within the central 72dp safe zone (radius 28 arc and centered car).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,23 +9,23 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 端点几何同 ic_launcher_foreground.xml，改动请两边同步 -->
+    <!-- Endpoint geometry matches ic_launcher_foreground.xml; keep both in sync -->
 
-    <!-- 仪表底弧（暗） -->
+    <!-- Gauge track arc (dim) -->
     <path
         android:pathData="M29.751,68 A28,28 0 1 1 78.249,68"
         android:strokeColor="#61000000"
         android:strokeWidth="7"
         android:strokeLineCap="round" />
 
-    <!-- 仪表进度弧（亮，走到 70%） -->
+    <!-- Gauge progress arc (bright, reaching 70%) -->
     <path
         android:pathData="M29.751,68 A28,28 0 0 1 74.808,35.264"
         android:strokeColor="#FF000000"
         android:strokeWidth="7"
         android:strokeLineCap="round" />
 
-    <!-- 车辆剪影 -->
+    <!-- Vehicle silhouette -->
     <group
         android:scaleX="1.65"
         android:scaleY="1.65"

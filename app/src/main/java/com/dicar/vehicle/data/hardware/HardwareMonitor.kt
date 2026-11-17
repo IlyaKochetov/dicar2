@@ -12,7 +12,7 @@ import android.os.SystemClock
 import android.system.Os
 import android.system.OsConstants
 
-/** 一个核心此刻的状态。 */
+/** Current state of one core. */
 data class CoreLive(
     val index: Int,
     val online: Boolean,
@@ -20,9 +20,9 @@ data class CoreLive(
     val minKhz: Long?,
     val maxKhz: Long?,
     val governor: String?,
-    /** 两次采样之间的占用率；采样间隔内没有变化时为 null。 */
+    /** Utilization between samples; null when counters do not change. */
     val load: Float?,
-    /** 核心型号，如 `Cortex-A55`。 */
+    /** Core model, such as `Cortex-A55`. */
     val model: String?,
 )
 
@@ -45,12 +45,12 @@ data class BatteryLive(
     val cycleCount: Int?,
 )
 
-/** 整页硬件数据里会随时间变的那一部分。静态信息由 [HardwareInspector] 只采一次。 */
+/** Live hardware data; [HardwareInspector] collects static information separately. */
 data class LiveStats(
     val totalLoad: Float?,
-    /** /proc/stat 能不能读。读不到时界面要说清是系统限制，而不是让人以为读数坏了。 */
+    /** Whether /proc/stat is readable; the UI explains system restrictions when it is not. */
     val systemLoadAvailable: Boolean,
-    /** 本应用自己的 CPU 占用。/proc/self/stat 永远读得到，是全局占用读不到时的退路。 */
+    /** This app's CPU utilization from /proc/self/stat, a fallback when global utilization is unavailable. */
     val appLoad: Float?,
     val cores: List<CoreLive>,
     val gpuHz: Long?,
@@ -69,22 +69,22 @@ data class LiveStats(
     val battery: BatteryLive?,
     val uptimeMs: Long,
     val awakeMs: Long,
-    /** 本应用打开的文件描述符数。/proc 被 hidepid 挡住后，这是少数还能读的进程级指标。 */
+    /** Open file descriptors for this app, available even when hidepid restricts other processes. */
     val openFds: Int?,
 ) {
     val memUsed: Long? get() = if (memTotal != null && memAvailable != null) memTotal - memAvailable else null
 }
 
 /**
- * 动态指标采样器。
+ * Live metrics sampler.
  *
- * CPU 占用率必须靠两次 `/proc/stat` 之间的差值算，所以这个类是**有状态**的：
- * 调用方自己按固定节奏反复调 [sample]，第一次返回的占用率全是 null（没有前一帧可比）。
+ * CPU utilization uses differences between `/proc/stat` samples, so this class is stateful.
+ * Call [sample] periodically; the first sample has null utilization because no previous sample exists.
  */
 class HardwareMonitor(private val context: Context) {
 
     private var previous: Map<String, ProcParse.CpuTimes> = emptyMap()
-    /** 核心型号不会变，第一次读完就缓存住，之后每秒采样不再碰 /proc/cpuinfo。 */
+    /** Cache core models after the first read rather than rereading /proc/cpuinfo every second. */
     private val coreModels: Map<Int, String?> by lazy {
         val text = SysFs.text("/proc/cpuinfo") ?: return@lazy emptyMap()
         ProcParse.cpuCores(text).associate { it.index to SiliconNames.core(it.implementer, it.part) }
@@ -107,8 +107,8 @@ class HardwareMonitor(private val context: Context) {
             appLoad = appLoad(),
             cores = cores(before, now),
             gpuHz = SysFs.gpuHz(),
-            // ActivityManager 的数字是系统口径（扣掉了内核保留），meminfo 是全量；
-            // 两边都给，优先显示系统口径，和「设置 → 关于手机」里的数对得上
+            // Show both ActivityManager memory (excluding kernel reservations) and meminfo;
+            // prefer the system figure to match Settings.
             memTotal = amInfo?.totalMem ?: mem["MemTotal"],
             memAvailable = amInfo?.availMem ?: mem["MemAvailable"],
             memFree = mem["MemFree"],
@@ -132,10 +132,9 @@ class HardwareMonitor(private val context: Context) {
     private var lastAppWallMs: Long = 0
 
     /**
-     * 本应用占的 CPU，按「全部核心加起来算 100%」折算。
+     * App CPU utilization normalized so all cores together equal 100%.
      *
-     * /proc/self/stat 读自己的进程，任何安卓版本上都不会被 SELinux 挡住——
-     * 这是 /proc/stat 不可读时唯一还能给出的占用率。
+     * /proc/self/stat reads the current process and provides a fallback when /proc/stat is inaccessible.
      */
     private fun appLoad(): Float? {
         val ticks = SysFs.text("/proc/self/stat")?.let { ProcParse.selfCpuTicks(it) }
@@ -159,12 +158,12 @@ class HardwareMonitor(private val context: Context) {
     ): List<CoreLive> = SysFs.cpuDirs().map { dir ->
         val index = dir.name.removePrefix("cpu").toIntOrNull() ?: -1
         val freq = "${dir.absolutePath}/cpufreq"
-        // cpu0 永远在线，内核干脆不给它 online 节点
+        // cpu0 is always online and may have no online node.
         val online = SysFs.int("${dir.absolutePath}/online")?.let { it == 1 } ?: (index == 0)
         CoreLive(
             index = index,
             online = online,
-            // 离线核心的 scaling_cur_freq 要么读不到、要么是上次下线前的残值，直接当没有
+            // Treat offline-core scaling_cur_freq as unavailable; it may be missing or stale.
             curKhz = if (online) {
                 SysFs.khz("$freq/scaling_cur_freq") ?: SysFs.khz("$freq/cpuinfo_cur_freq")
             } else null,
@@ -183,12 +182,12 @@ class HardwareMonitor(private val context: Context) {
                 val type = SysFs.text("${dir.absolutePath}/type") ?: dir.name
                 ThermalReading(dir.name, type, normalizeTemp(raw))
             }
-            // 明显离谱的读数（未接的传感器常年报 -40 或 0）留着没用，只会淹没真正有用的几路
+            // Discard implausible readings such as -40 or 0 from disconnected sensors.
             .filter { it.celsius != null && it.celsius > -30f && it.celsius < 200f }
 
     /**
-     * thermal zone 的单位没有统一标准：绝大多数是毫摄氏度，少数是十分之一度，
-     * 还有直接给摄氏度的。按量级猜，猜错也只是小数点位置不对，不会误导量级。
+     * Thermal zone units vary: most use millidegrees, some tenths of a degree or degrees.
+     * Infer the scale from magnitude.
      */
     private fun normalizeTemp(raw: Long): Float = when {
         raw > 10_000 || raw < -10_000 -> raw / 1000f
@@ -212,7 +211,7 @@ class HardwareMonitor(private val context: Context) {
         }
     }
 
-    // ---------------- 电池 ----------------
+    // ---------------- Battery ----------------
 
     private fun battery(): BatteryLive? {
         val sticky = runCatching {
@@ -224,7 +223,7 @@ class HardwareMonitor(private val context: Context) {
         val level = sticky?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = sticky?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
         return BatteryLive(
-            // 车机大多没有独立电池，这里经常是 false，界面要如实说明而不是显示 0%
+            // 车机大多没有独立Battery，这里经常是 false，界面要如实说明而不是显示 0%
             present = sticky?.getBooleanExtra(BatteryManager.EXTRA_PRESENT, false) ?: false,
             levelPercent = if (level >= 0 && scale > 0) level * 100f / scale else null,
             status = statusText(sticky?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1),
@@ -248,7 +247,7 @@ class HardwareMonitor(private val context: Context) {
         )
     }
 
-    /** 不支持的属性安卓会返回 `Integer.MIN_VALUE`（有些厂商返回 0），统一当作没有。 */
+    /** Treat unsupported properties reported as `Integer.MIN_VALUE` (or 0 on some devices) as unavailable. */
     private fun BatteryManager.prop(id: Int): Int? =
         runCatching { getIntProperty(id) }.getOrNull()?.takeIf { it != Int.MIN_VALUE && it != 0 }
 
@@ -279,10 +278,10 @@ class HardwareMonitor(private val context: Context) {
     }
 
     companion object {
-        /** 页面可见时的采样间隔。1 秒和车辆轮询同频，看起来不会一个快一个慢。 */
+        /** Visible-screen sampling interval, matching the one-second vehicle poll. */
         const val SAMPLE_INTERVAL_MS = 1_000L
 
-        /** 系统时钟每秒的滴答数，算 CPU 时间用；读不到按 Linux 惯例的 100 算。 */
+        /** Clock ticks per second for CPU time; fall back to the Linux convention of 100. */
         val clockTicks: Long by lazy {
             runCatching { Os.sysconf(OsConstants._SC_CLK_TCK) }.getOrNull()?.takeIf { it > 0 } ?: 100L
         }

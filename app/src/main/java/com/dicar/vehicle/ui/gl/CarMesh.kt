@@ -6,12 +6,12 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** 一段三角网格。顶点按「位置 xyz + 法线 xyz」交错存放，平面着色（不共享顶点）。 */
+/** Triangle mesh with interleaved position xyz and normal xyz; flat shaded without shared vertices. */
 class Mesh(val data: FloatArray, val vertexCount: Int)
 
 /**
- * 三角形累加器。法线按面自动算，所以车身是低多边形的硬边观感——
- * 这是故意的：车机 GPU 弱，平面着色不需要共享顶点和平滑法线，几何量也能压到最小。
+ * Triangle accumulator with per-face normals for an intentionally low-poly appearance.
+ * Flat shading avoids shared vertices and smooth normals, keeping geometry light for the head-unit GPU.
  */
 class MeshBuilder {
     private val out = ArrayList<Float>(2048)
@@ -31,9 +31,8 @@ class MeshBuilder {
     }
 
     /**
-     * 按「法线必须背离 [center]」自动决定绕序。
-     * 车身是放样出来的，逐个面去推正确的顶点顺序极易出错且难查（表现为某些面在
-     * 背面剔除下凭空消失），用一次点积判断省掉这整类问题。
+     * Determine winding automatically so the normal points away from [center].
+     * A dot product avoids error-prone manual winding of lofted faces, which can disappear under back-face culling.
      */
     fun quadOutward(a: FloatArray, b: FloatArray, c: FloatArray, d: FloatArray, center: FloatArray) {
         val n = normalOf(a, b, c)
@@ -69,16 +68,16 @@ private fun normalOf(a: FloatArray, b: FloatArray, c: FloatArray): FloatArray {
 
 private fun v(x: Float, y: Float, z: Float) = floatArrayOf(x, y, z)
 
-/** 一扇车门：钣金和玻璃分开，铰链在车门前缘的竖轴上。 */
+/** One door with separate metal and glass; the hinge is the vertical axis at its front edge. */
 class DoorPart(
     val panel: Mesh,
     val glass: Mesh,
-    /** 铰链位置（世界坐标，绕 Y 轴转）。 */
+    /** Hinge position in world coordinates; rotates around Y. */
     val hingeX: Float,
     val hingeZ: Float,
-    /** 车窗升降时玻璃绕这个高度做 Y 向缩放，看起来像降下去。 */
+    /** Window glass scales along Y around this height to simulate lowering. */
     val beltlineY: Float,
-    /** 左侧为 -1、右侧为 +1，决定开门方向。 */
+    /** Left is -1 and right is +1, determining the opening direction. */
     val side: Float,
 )
 
@@ -88,24 +87,23 @@ class CarParts(
     val interior: Mesh,
     val doors: List<DoorPart>,
     val wheel: Mesh,
-    /** 前后灯左右分开：转向灯要单独点亮一侧。顺序 [左前, 右前, 左后, 右后]。 */
+    /** Separate left and right lamps for indicators. Order: [front left, front right, rear left, rear right]. */
     val lights: List<Mesh>,
     val shadow: Mesh,
 )
 
 /**
- * 程序化生成的三厢轿车。
+ * Procedurally generated sedan.
  *
- * 做法是沿车长方向定义若干横截面，相邻截面之间放样成面。截面本身描述的是
- * 「从左下沿车侧上去、翻过车顶、再下到右下」的轮廓，所以车头收窄、腰线隆起、
- * 车顶收进这些造型全部由截面参数控制，不需要手工摆顶点。
+ * Cross sections along the length are lofted into faces. Each traces the outline from the lower left,
+ * over the roof and down to the lower right. Section parameters control the nose, beltline and roof.
  *
- * 车门不是贴在车身上的额外壳子：放样时直接把门所在区段的车侧面**划给车门**，
- * 车身那里是真的空的，开门能看进车内（内饰由一个深色内壳兜住）。
+ * Door sections own the corresponding side faces instead of overlaying the body.
+ * The body is open there, revealing a dark interior shell when doors open.
  */
 object CarMesh {
 
-    /** 车长（米）。相机距离、阴影大小都按这个推。 */
+    /** Car length in meters, used for camera distance and shadow size. */
     const val LENGTH = 4.62f
     const val WIDTH = 1.85f
     const val HEIGHT = 1.47f
@@ -116,23 +114,22 @@ object CarMesh {
     private const val WHEEL_WIDTH = 0.22f
 
     /**
-     * 轮心的横向位置。必须让轮胎外侧略微探出车身（车身腰线半宽 0.925），
-     * 否则四个轮子整个埋在车身里，从外面根本看不见。
+     * Wheel center lateral position. Tires must protrude slightly beyond the body (beltline half-width 0.925)
+     * or they will be hidden inside it.
      */
     const val WHEEL_X = 0.845f
     const val WHEEL_Z_FRONT = 1.40f
     const val WHEEL_Z_REAR = -1.36f
 
     /**
-     * 顶面高度在一段内变化超过这个值，就认为那块斜面是前/后风挡（玻璃）。
-     * 阈值不能再低了：车尾 C 柱到后备箱盖那一段的落差有 0.15，调低会把
-     * 后备箱盖也判成玻璃。
+     * A top-height change above this threshold identifies a front or rear windscreen.
+     * A lower threshold would also classify the 0.15 drop from the rear C pillar to the trunk as glass.
      */
     private const val SCREEN_DROP = 0.20f
 
     /**
-     * 横截面。[halfW] 腰线处半宽，[yBot] 底边高度，[yBelt] 腰线高度，
-     * [yTop] 顶面高度，[topHalfW] 顶面半宽（车顶比车身收进去多少）。
+     * Cross section: [halfW] beltline half-width, [yBot] bottom height, [yBelt] beltline height,
+     * [yTop] top height, and [topHalfW] top half-width.
      */
     private class Sec(
         val z: Float,
@@ -142,7 +139,7 @@ object CarMesh {
         val yTop: Float,
         val topHalfW: Float,
     ) {
-        /** 11 个点：0..4 左半边自下而上，5 车顶中线，6..10 右半边镜像。 */
+        /** Eleven points: 0..4 rise along the left, 5 is the roof center, 6..10 mirror the right. */
         fun outline(): Array<FloatArray> {
             val yMid = yBot + (yBelt - yBot) * 0.45f
             val yShoulder = yBelt + (yTop - yBelt) * 0.55f
@@ -162,8 +159,8 @@ object CarMesh {
         }
     }
 
-    // 车头在 +Z。yTop 从车头的 0.82 一路抬到座舱的 1.47 再收回车尾，
-    // 中间那两段陡升/陡降的面自然就成了前后风挡。
+    // The front points along +Z. yTop rises from 0.82 at the nose to 1.47 at the cabin and falls toward the rear;
+    // the steep sections form the front and rear windscreens.
     private val SECTIONS = listOf(
         Sec(z = 2.31f, halfW = 0.70f, yBot = 0.44f, yBelt = 0.70f, yTop = 0.72f, topHalfW = 0.66f),
         Sec(z = 2.02f, halfW = 0.86f, yBot = 0.33f, yBelt = 0.77f, yTop = 0.80f, topHalfW = 0.82f),
@@ -177,22 +174,21 @@ object CarMesh {
         Sec(z = -2.31f, halfW = 0.70f, yBot = 0.44f, yBelt = 0.82f, yTop = 0.84f, topHalfW = 0.66f),
     )
 
-    // 车门占用的截面区段：前门 3→5，后门 5→7
+    // Door section ranges: front 3→5, rear 5→7
     private const val FRONT_DOOR_FROM = 3
     private const val FRONT_DOOR_TO = 5
     private const val REAR_DOOR_FROM = 5
     private const val REAR_DOOR_TO = 7
 
     /**
-     * 车门包含的轮廓边（边 e 连接点 e 和 e+1）。
-     * 左侧只有 1（门板，腰线以下）和 2（侧窗玻璃）两条：
-     * 边 0 是门槛、边 3 是车顶纵梁，这两条都得留在车身上——把纵梁也划给车门的话，
-     * 开门会在车顶上挖出一个豁口，看着像整个侧面掉了。右侧对应 8 和 7。
+     * Profile edges assigned to doors (edge e connects points e and e+1).
+     * Left edges 1 and 2 are the door panel and window; edge 0 is the sill and edge 3 the roof rail.
+     * Keep the latter on the body to avoid a roof gap when opening. Right edges are 8 and 7.
      */
     private val LEFT_DOOR_EDGES = setOf(1, 2)
     private val RIGHT_DOOR_EDGES = setOf(7, 8)
 
-    /** 玻璃所在的边：肩部以上那两条；只有座舱段（顶面明显高于腰线）才算。 */
+    /** Glass edges above the shoulder, only within cabin sections where the top is well above the beltline. */
     private val GLASS_EDGES = setOf(2, 3, 6, 7)
 
     fun build(): CarParts {
@@ -208,9 +204,9 @@ object CarMesh {
             val s1 = SECTIONS[i + 1]
             val o0 = outlines[i]
             val o1 = outlines[i + 1]
-            // 这一段是不是座舱（顶面明显高于腰线），决定肩部那两条边算不算玻璃
+            // Cabin sections determine whether the two edges above the shoulder are glass.
             val greenhouse = (s0.yTop - s0.yBelt) > 0.18f && (s1.yTop - s1.yBelt) > 0.18f
-            // 风挡：顶面高度在这一段里陡变，那块斜面就是前/后风挡
+            // A steep change in top height identifies a front or rear windscreen.
             val screen = abs(s1.yTop - s0.yTop) > SCREEN_DROP
 
             for (e in 0..10) {
@@ -222,7 +218,7 @@ object CarMesh {
 
                 val door = doorIndexFor(i, e)
                 val isGlass = when {
-                    screen && e in 3..6 -> true          // 前后风挡横跨车顶那几条边
+                    screen && e in 3..6 -> true          // Front and rear windscreens span the roof edges
                     greenhouse && e in GLASS_EDGES -> true
                     else -> false
                 }
@@ -236,7 +232,7 @@ object CarMesh {
             }
         }
 
-        // 车头和车尾的封口
+        // Close the front and rear
         capSection(body, outlines.first(), SECTIONS.first().z)
         capSection(body, outlines.last(), SECTIONS.last().z)
 
@@ -254,7 +250,7 @@ object CarMesh {
         )
     }
 
-    /** 这条边属于哪扇门：0 左前 1 右前 2 左后 3 右后，-1 表示归车身。 */
+    /** Door owning this edge: 0 front left, 1 front right, 2 rear left, 3 rear right, or -1 for body. */
     private fun doorIndexFor(segment: Int, edge: Int): Int {
         val front = segment in FRONT_DOOR_FROM until FRONT_DOOR_TO
         val rear = segment in REAR_DOOR_FROM until REAR_DOOR_TO
@@ -287,7 +283,7 @@ object CarMesh {
         }
     }
 
-    /** 车头/车尾封口：以截面重心为中心扇形填充。 */
+    /** Front/rear cap: triangle fan centered on the section centroid. */
     private fun capSection(mb: MeshBuilder, outline: Array<FloatArray>, z: Float) {
         var cx = 0f; var cy = 0f
         outline.forEach { cx += it[0]; cy += it[1] }
@@ -300,8 +296,8 @@ object CarMesh {
     }
 
     /**
-     * 内饰壳：开门之后挡住视线，不然能一眼看穿整台车。
-     * 比车身内收一截，用深色绘制，形状糙一点无所谓——只会从门洞里露出一小块。
+     * Dark interior shell blocks the view through the car when doors open.
+     * It is inset from the body and only a small portion is visible through the doorway.
      */
     private fun buildInterior(): Mesh {
         val mb = MeshBuilder()
@@ -327,7 +323,7 @@ object CarMesh {
         mb.quadOutward(p[0], p[1], p[5], p[4], center)
     }
 
-    /** 轮胎 + 轮毂盘。沿 X 轴的圆柱，原点在轮心，四个轮子共用同一份网格。 */
+    /** Tire and wheel disc: cylinder along X, origin at the wheel center, shared by all four wheels. */
     private fun buildWheel(): Mesh {
         val mb = MeshBuilder()
         val seg = 16
@@ -339,9 +335,9 @@ object CarMesh {
             val a1 = 2.0 * PI * (i + 1) / seg
             val y0 = (r * cos(a0)).toFloat(); val z0 = (r * sin(a0)).toFloat()
             val y1 = (r * cos(a1)).toFloat(); val z1 = (r * sin(a1)).toFloat()
-            // 胎面
+            // Tread
             mb.quadOutward(v(-hw, y0, z0), v(hw, y0, z0), v(hw, y1, z1), v(-hw, y1, z1), center)
-            // 两侧轮辐面（稍微内凹，边缘留出胎壁）
+            // Side faces, slightly inset to leave the tire sidewall
             val ri = 0.82f
             mb.quadOutward(
                 v(hw, y0, z0), v(hw * 0.72f, y0 * ri, z0 * ri),
@@ -351,17 +347,17 @@ object CarMesh {
                 v(-hw, y0, z0), v(-hw * 0.72f, y0 * ri, z0 * ri),
                 v(-hw * 0.72f, y1 * ri, z1 * ri), v(-hw, y1, z1), center,
             )
-            // 轮毂盘面，给个轮辐的暗示
+            // Wheel disc with a hint of spokes
             mb.tri(v(hw * 0.72f, 0f, 0f), v(hw * 0.72f, y0 * ri, z0 * ri), v(hw * 0.72f, y1 * ri, z1 * ri))
             mb.tri(v(-hw * 0.72f, 0f, 0f), v(-hw * 0.72f, y1 * ri, z1 * ri), v(-hw * 0.72f, y0 * ri, z0 * ri))
         }
         return mb.build()
     }
 
-    /** 单个灯组。左右分开成独立网格，转向灯才能只亮一侧。 */
+    /** Single lamp assembly; separate left and right meshes support independent indicators. */
     private fun lamp(front: Boolean, side: Float): Mesh {
         val mb = MeshBuilder()
-        // 稍微埋进车头/车尾里一点，避免和车身面重合打架（z-fighting）
+        // Inset slightly into the front/rear to avoid z-fighting with body faces.
         val zOuter = if (front) 2.26f else -2.26f
         val zInner = if (front) 2.08f else -2.08f
         val y0 = if (front) 0.60f else 0.73f
@@ -377,7 +373,7 @@ object CarMesh {
         return mb.build()
     }
 
-    /** 车底的椭圆投影，把车"放"在地面上而不是飘着。 */
+    /** Elliptical shadow beneath the car to ground it visually. */
     private fun buildShadow(): Mesh {
         val mb = MeshBuilder()
         val seg = 28

@@ -26,11 +26,11 @@ import com.dicar.vehicle.ui.gl.Car3dRenderer
 import kotlin.math.hypot
 
 /**
- * 3D 车辆视图。拖动旋转、双指缩放。
+ * 3D vehicle view. Drag to rotate and pinch to zoom.
  *
- * 默认不开（设置里的开关）：虽然整台车只有一千多个三角形，但 GLSurfaceView 会持续
- * 以屏幕刷新率重绘，在车机那块 GPU 上和导航同时开时仍然是额外负担。关掉就退回
- * 纯 Canvas 的 2D 俯视图，一点 GPU 都不多占。
+ * Disabled by default in settings: although the car has only about a thousand triangles,
+ * GLSurfaceView redraws continuously at the display refresh rate, adding GPU load alongside navigation.
+ * When disabled, the app uses the 2D Canvas top view.
  */
 @Composable
 fun Car3dView(state: VehicleState, modifier: Modifier = Modifier) {
@@ -40,7 +40,7 @@ fun Car3dView(state: VehicleState, modifier: Modifier = Modifier) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = remember { mutableHolder<CarGlView>() }
 
-    // 车机切后台时必须 onPause，否则 GL 线程会继续空转
+    // Pause when the head unit enters the background to stop the GL thread spinning.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -96,14 +96,14 @@ private fun Int?.toFraction() = ((this ?: 0) / 100f).coerceIn(0f, 1f)
 
 private fun Color.toRgba() = floatArrayOf(red, green, blue, alpha)
 
-/** 极简的可变引用，避免为了存一个 View 引入 mutableStateOf 触发额外重组。 */
+/** Simple mutable reference that avoids recomposition from storing a View in mutableStateOf. */
 private class Holder<T> { var value: T? = null }
 
 private fun <T> mutableHolder() = Holder<T>()
 
 /**
- * 承载渲染器的 GLSurfaceView。手势直接改渲染器上的相机参数，不走 Compose，
- * 免得每帧都触发重组。
+ * GLSurfaceView hosting the renderer. Gestures update camera parameters directly,
+ * avoiding Compose recomposition on every frame.
  */
 @SuppressLint("ViewConstructor")
 private class CarGlView(context: Context, private val renderer: Car3dRenderer) : GLSurfaceView(context) {
@@ -126,7 +126,7 @@ private class CarGlView(context: Context, private val renderer: Car3dRenderer) :
             MotionEvent.ACTION_DOWN -> {
                 lastX = event.x; lastY = event.y
                 pinching = false
-                // 外层是可滚动的列（竖屏布局），不拦住父级的话一拖就滚页面
+                // Prevent the enclosing scrollable portrait column from intercepting drags.
                 parent?.requestDisallowInterceptTouchEvent(true)
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
@@ -147,7 +147,7 @@ private class CarGlView(context: Context, private val renderer: Car3dRenderer) :
                 }
             }
             MotionEvent.ACTION_POINTER_UP -> {
-                // 抬起一根手指后回到单指旋转，基准点要重新取，否则视角会突跳
+                // Reset the reference point when returning to one-finger rotation to avoid a jump.
                 val remaining = if (event.actionIndex == 0) 1 else 0
                 lastX = event.getX(remaining); lastY = event.getY(remaining)
                 pinching = false

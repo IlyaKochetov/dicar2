@@ -1,29 +1,29 @@
 package com.dicar.vehicle.data.hardware
 
 /**
- * `/proc` 下几个文本文件的解析。纯函数，不碰文件系统，便于单测。
+ * Pure parsers for several `/proc` text files; no filesystem access, for easy unit testing.
  *
- * 这些文件的格式几十年没变过，但**能不能读到**在不同安卓版本上差别很大
- * （SELinux 对 app 域的限制逐代收紧），所以每个解析函数都要容忍残缺输入。
+ * Formats are stable, but access varies substantially by Android version and SELinux policy;
+ * each parser must tolerate incomplete input.
  */
 object ProcParse {
 
     // ---------------- /proc/cpuinfo ----------------
 
     data class CpuIdentity(
-        /** `Hardware` 行，通常是平台代号，如 `Qualcomm Technologies, Inc SM6125`。 */
+        /** `Hardware` line, usually a platform identifier such as `Qualcomm Technologies, Inc SM6125`. */
         val hardware: String?,
-        /** `CPU implementer`，0x41 = ARM、0x51 = 高通…… */
+        /** `CPU implementer`: 0x41 = ARM, 0x51 = Qualcomm, etc. */
         val implementer: Int?,
-        /** `CPU part`，和 implementer 一起才能定位到具体核心。 */
+        /** `CPU part`, used with implementer to identify a core. */
         val part: Int?,
         val variant: Int?,
         val revision: Int?,
-        /** `Features` / `flags` 行拆开后的指令集扩展。 */
+        /** Instruction set extensions parsed from `Features` / `flags`. */
         val features: List<String>,
-        /** 文件里出现了几个 `processor` 段。 */
+        /** Number of `processor` sections in the file. */
         val processorCount: Int,
-        /** x86 模拟器上才有的 `model name`。 */
+        /** `model name`, present on x86 emulators. */
         val modelName: String?,
         val serialPresent: Boolean,
     )
@@ -40,7 +40,7 @@ object ProcParse {
                 processors++
                 continue
             }
-            // 同名字段（每个核心都会重复一遍）保留第一次出现的值
+            // Keep the first value for fields repeated per core.
             fields.putIfAbsent(key, value)
         }
         val featureLine = fields["features"] ?: fields["flags"]
@@ -57,12 +57,12 @@ object ProcParse {
         )
     }
 
-    /** 单个 `processor` 段里的核心身份。big.LITTLE 上每段的 part 不一样。 */
+    /** Core identity from one `processor` section; part differs across big.LITTLE cores. */
     data class CoreId(val index: Int, val implementer: Int?, val part: Int?)
 
     /**
-     * 逐段解析每个核心的 implementer/part。
-     * 只有这样才能分出大小核——按最高频率分组不可靠，有些芯片大小核标称频率相同。
+     * Parse each core's implementer and part to distinguish big and little cores;
+     * grouping by maximum frequency is unreliable when cores share a nominal frequency.
      */
     fun cpuCores(text: String): List<CoreId> {
         val result = mutableListOf<CoreId>()
@@ -77,7 +77,7 @@ object ProcParse {
             val idx = line.indexOf(':')
             if (idx < 0) continue
             when (line.substring(0, idx).trim().lowercase()) {
-                // processor 行既是新段的开始，也是上一段的结束
+                // A processor line starts a new section and ends the previous one.
                 "processor" -> {
                     flush()
                     index = line.substring(idx + 1).trim().toIntOrNull()
@@ -97,7 +97,7 @@ object ProcParse {
 
     // ---------------- /proc/meminfo ----------------
 
-    /** 返回字节数。meminfo 里的单位是 kB，这里统一换算掉，免得各处记错。 */
+    /** Return bytes, converting meminfo's kB units centrally. */
     fun memInfo(text: String): Map<String, Long> = buildMap {
         for (line in text.lineSequence()) {
             val idx = line.indexOf(':')
@@ -111,13 +111,12 @@ object ProcParse {
 
     // ---------------- /proc/stat ----------------
 
-    /** 一个 CPU（或全部 CPU 汇总）的累计时间片。 */
+    /** Cumulative time counters for one CPU or all CPUs. */
     data class CpuTimes(val total: Long, val idle: Long)
 
     /**
-     * 解析出 `cpu`（下标 0 是汇总）和各个 `cpuN`。
-     * 注意离线的核心在 /proc/stat 里**直接不出现**，所以返回的是「名字 → 时间片」，
-     * 不能按下标当成核心编号。
+     * Parse aggregate `cpu` and each `cpuN` from /proc/stat.
+     * Offline cores are absent, so return a name-to-counters map rather than using list indices as core IDs.
      */
     fun cpuTimes(text: String): Map<String, CpuTimes> = buildMap {
         for (line in text.lineSequence()) {
@@ -133,8 +132,8 @@ object ProcParse {
     }
 
     /**
-     * 两次采样之间的占用率。分母为 0（采样间隔太短、或者核心刚上线）时返回 null，
-     * 而不是 0——「这一刻测不出来」和「空闲」是两回事。
+     * Utilization between samples. Return null when the denominator is zero (short interval or newly online core),
+     * since unavailable is different from idle.
      */
     fun load(before: CpuTimes?, after: CpuTimes?): Float? {
         if (before == null || after == null) return null
@@ -147,16 +146,14 @@ object ProcParse {
     // ---------------- /proc/self/stat ----------------
 
     /**
-     * 本进程用掉的 CPU 时间（utime + stime，单位是时钟滴答）。
-     *
-     * 第 2 个字段是进程名，带括号而且**可以包含空格和括号**，所以不能直接按空格切。
-     * 必须从最后一个右括号之后开始数，这是解析这个文件最容易踩的坑。
+     * Process CPU time (utime + stime, in clock ticks).
+     * The parenthesized process name can contain spaces and parentheses, so count fields after the last closing parenthesis.
      */
     fun selfCpuTicks(text: String): Long? {
         val tail = text.substringAfterLast(") ", missingDelimiterValue = "")
         if (tail.isEmpty()) return null
         val fields = tail.trim().split(Regex("\\s+"))
-        // tail 的第 1 项是 state（整个文件的第 3 个字段），所以 utime(14)/stime(15) 在这里是下标 11/12
+        // The first tail item is state (field 3), so utime (14) and stime (15) are indices 11 and 12.
         val utime = fields.getOrNull(11)?.toLongOrNull() ?: return null
         val stime = fields.getOrNull(12)?.toLongOrNull() ?: return null
         return utime + stime
@@ -173,7 +170,7 @@ object ProcParse {
 
     // ---------------- /proc/version ----------------
 
-    /** 内核版本串很长，首页只放前面的版本号部分，完整串单独一行。 */
+    /** Show the leading version on the dashboard and the full kernel version string separately. */
     fun kernelVersion(text: String): String? =
         Regex("""Linux version (\S+)""").find(text)?.groupValues?.get(1)
 }

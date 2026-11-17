@@ -10,7 +10,7 @@ import android.hardware.camera2.params.StreamConfigurationMap
 import android.os.Build
 import android.util.Size
 
-/** 传感器。逐个列出完整参数。 */
+/** Sensors, listing all available parameters individually. */
 fun collectSensors(context: Context): HwSection {
     val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     val sensors = sm?.getSensorList(Sensor.TYPE_ALL).orEmpty()
@@ -30,7 +30,7 @@ fun collectSensors(context: Context): HwSection {
                 item("Range", "${s.maximumRange}")
                 item("Resolution", "${s.resolution}")
                 item("Power draw", "${s.power} mA")
-                // minDelay 是最小采样周期（微秒），倒过来才是最高频率，后者更好理解
+                // minDelay is the minimum sampling period in microseconds; its reciprocal is the maximum frequency.
                 item(
                     "Maximum frequency",
                     when {
@@ -54,10 +54,10 @@ fun collectSensors(context: Context): HwSection {
     }
 }
 
-/** 摄像头。车机上通常是倒车影像和 360 环视。 */
+/** Cameras, commonly rear-view and surround-view on head units. */
 fun collectCameras(context: Context): HwSection {
     val cm = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-    // 只读参数，不开相机，所以不需要 CAMERA 权限
+    // Read characteristics without opening cameras, so CAMERA permission is unnecessary.
     val ids = runCatching { cm?.cameraIdList }.getOrNull().orEmpty()
 
     return section(HwCategory.CAMERA) {
@@ -148,7 +148,7 @@ private fun reportingMode(mode: Int): String = when (mode) {
     else -> HwItem.UNKNOWN
 }
 
-/** 常量名比数字好认，但安卓没有现成的反查，只能自己列。 */
+/** Android provides no reverse lookup for these constants, so list readable names explicitly. */
 private fun sensorTypeName(type: Int): String = when (type) {
     Sensor.TYPE_ACCELEROMETER -> "Accelerometer"
     Sensor.TYPE_MAGNETIC_FIELD -> "Magnetometer"

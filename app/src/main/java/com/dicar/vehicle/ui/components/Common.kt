@@ -34,8 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.dicar.vehicle.util.Format
 
 /**
- * 数据卡片外壳：白卡 + 细描边 + 不投影，标题是小字浅色（强调色留给数据本身，
- * 不浪费在标题上）。[title] 传 null 则不画标题行，用于底栏这类只有内容的卡片。
+ * Data card: white surface, thin outline, no shadow and a subdued title.
+ * A null [title] omits the title row for content-only cards such as the bottom bar.
  */
 @Composable
 fun DataCard(
@@ -67,7 +67,7 @@ fun DataCard(
     }
 }
 
-/** 大号主读数，如车速、SOC。value 为 N/A 时自动变灰。 */
+/** Large reading, such as speed or SOC, grayed out when unavailable. */
 @Composable
 fun BigMetric(value: String, unit: String, label: String, modifier: Modifier = Modifier, size: TextUnit = 44.sp) {
     val na = value == Format.NA
@@ -93,7 +93,7 @@ fun BigMetric(value: String, unit: String, label: String, modifier: Modifier = M
     }
 }
 
-/** 标签 + 数值的一行。 */
+/** A label and value in one row. */
 @Composable
 fun MetricRow(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = Color.Unspecified) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -118,7 +118,7 @@ fun MetricRow(label: String, value: String, modifier: Modifier = Modifier, value
     }
 }
 
-/** 两列并排的 MetricRow，节省纵向空间。 */
+/** Two side-by-side MetricRows to save vertical space. */
 @Composable
 fun MetricPair(
     leftLabel: String, leftValue: String,
@@ -130,7 +130,7 @@ fun MetricPair(
     }
 }
 
-/** 百分比条（油门、刹车、SOC）。value 为 null 时显示空条 + N/A。 */
+/** Percentage bar for accelerator, brake or SOC; null displays an empty bar and N/A. */
 @Composable
 fun PercentBar(label: String, value: Float?, color: Color = MaterialTheme.colorScheme.primary) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -149,7 +149,7 @@ fun PercentBar(label: String, value: Float?, color: Color = MaterialTheme.colorS
     }
 }
 
-/** 加减调节器（温度、风量）。pending = 指令已下发，正在等车机回读确认。 */
+/** Increment/decrement control; pending means the command awaits vehicle readback confirmation. */
 @Composable
 fun Stepper(
     label: String,
@@ -192,9 +192,8 @@ fun Stepper(
 }
 
 /**
- * 加减按钮用中性底色 + 强调色字。
- * Material 默认的 filledTonal 走 secondaryContainer，在这套配色里是绿色——
- * 绿色被电量占用了，按钮再用绿会让人以为和电量有关。
+ * Stepper buttons use a neutral background and accent text.
+ * Material's default green secondaryContainer is reserved for battery level.
  */
 @Composable
 private fun stepperColors() = ButtonDefaults.filledTonalButtonColors(

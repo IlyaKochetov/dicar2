@@ -24,7 +24,7 @@ class VehicleApp : Application() {
     }
 }
 
-/** 手动依赖注入：App 很小，不引入 Hilt/Koin。 */
+/** Manual dependency injection; the app does not use Hilt or Koin. */
 class AppContainer(context: Context) {
     val settings = SettingsStore(context)
     private val adbTransport = AdbTransport(context)
@@ -36,7 +36,7 @@ class AppContainer(context: Context) {
     val probe = BydAutoProbe(context) { bydAuto.acquireAccess() }
     val updateChecker = UpdateChecker(currentVersion = BuildConfig.VERSION_NAME)
     val hardwareInspector = HardwareInspector(context)
-    // 有状态（要靠前后两次 /proc/stat 求差算占用率），所以全局只能有一个
+    // Stateful: utilization requires the difference between consecutive /proc/stat samples, so share one instance.
     val hardwareMonitor = HardwareMonitor(context)
 }
 

@@ -15,10 +15,10 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 
 /**
- * 网络。
+ * Network.
  *
- * 刻意**不读** Wi-Fi 名称和 BSSID：那两项从安卓 8.1 起要定位权限，为了一个信息展示页
- * 去申请定位很不划算。连接质量相关的（速率、频段、信号）不需要权限，照常显示。
+ * Do not read Wi-Fi SSID or BSSID, which require location permission since Android 8.1.
+ * Connection speed, band and signal can be shown without requesting location.
  */
 fun collectNetwork(context: Context): HwSection {
     val pm = context.packageManager
@@ -52,7 +52,7 @@ fun collectNetwork(context: Context): HwSection {
             item("Wi-Fi Direct", pm.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT))
             item("Wi-Fi Aware", pm.hasSystemFeature(PackageManager.FEATURE_WIFI_AWARE))
             item("Wi-Fi RTT ranging", pm.hasSystemFeature(PackageManager.FEATURE_WIFI_RTT))
-            @Suppress("DEPRECATION") // 新接口要注册回调，一次性读取用旧的就够
+            @Suppress("DEPRECATION") // The old API suffices for a one-time read; the new API requires a callback.
             val conn = runCatching { wifi?.connectionInfo }.getOrNull()
             if (conn != null && conn.networkId != -1) {
                 item("Link speed", conn.linkSpeed.takeIf { it > 0 }?.let { "$it Mbps" })
@@ -75,8 +75,8 @@ fun collectNetwork(context: Context): HwSection {
         block("Bluetooth") {
             item("Hardware", pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH))
             item("Bluetooth LE", pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
-            // 适配器状态在安卓 12 起要 BLUETOOTH_CONNECT 运行时权限；
-            // 车机是安卓 10，清单里的 BLUETOOTH 就够用。拿不到就显示未知，不去申请权限
+            // Adapter state requires BLUETOOTH_CONNECT at runtime from Android 12.
+            // Show unknown if unavailable rather than requesting permission.
             val adapter = runCatching {
                 (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
             }.getOrNull()
@@ -117,14 +117,14 @@ fun collectNetwork(context: Context): HwSection {
     }
 }
 
-/** 音频。采样率、延迟、当前接入的设备。 */
+/** Audio sample rates, latency and connected devices. */
 fun collectAudio(context: Context): HwSection {
     val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     val pm = context.packageManager
 
     return section(HwCategory.AUDIO) {
         block {
-            // 这两个数决定了能不能做低延迟音频：按它们开 AudioTrack 才能走快速通道
+            // These values help configure AudioTrack for the low-latency path.
             item("Output sample rate", am?.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)?.let { "$it Hz" })
             item("Output buffer", am?.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.let { "$it frames" })
             item("Low-latency audio", pm.hasSystemFeature(PackageManager.FEATURE_AUDIO_LOW_LATENCY))
@@ -229,11 +229,11 @@ private fun simState(v: Int?): String = when (v) {
     else -> HwItem.UNKNOWN
 }
 
-/** WifiManager.getConnectionInfo 给的是主机字节序的 int，要按小端拆回点分十进制。 */
+/** WifiManager.getConnectionInfo returns an integer in host byte order; decode it as little-endian dotted decimal. */
 private fun intToIp(raw: Int): String? {
     if (raw == 0) return null
     return (0..3).joinToString(".") { ((raw shr (it * 8)) and 0xFF).toString() }
 }
 
-/** `BluetoothStatusCodes.FEATURE_SUPPORTED`，API 33 才有。 */
+/** `BluetoothStatusCodes.FEATURE_SUPPORTED`, available from API 33. */
 private const val FEATURE_SUPPORTED = 10

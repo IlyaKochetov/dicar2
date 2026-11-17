@@ -66,17 +66,17 @@ import com.dicar.vehicle.ui.components.loadColor
 import com.dicar.vehicle.ui.components.tempColor
 
 /**
- * 硬件信息页。
+ * Hardware information screen.
  *
- * 分两层：顶部是每秒刷新的实时指标（占用率、频率、温度、内存），
- * 下面是只采一次的静态清单。静态那部分条目成千上万，所以配了搜索和分类过滤。
+ * Live metrics (utilization, frequency, temperature, memory) refresh every second.
+ * The static inventory is collected once and provides search and category filtering.
  */
 @Composable
 fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     val sections by viewModel.hardware.collectAsStateWithLifecycle()
     val loading by viewModel.hardwareLoading.collectAsStateWithLifecycle()
     val export by viewModel.hardwareExport.collectAsStateWithLifecycle()
-    // 冷流，离开这一页就自动停止采样，不会在后台空转
+    // The cold flow stops sampling when this screen is left.
     val liveFlow = remember { viewModel.liveStats() }
     val live by liveFlow.collectAsStateWithLifecycle(initialValue = null)
 
@@ -85,8 +85,8 @@ fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
 
     LaunchedEffect(Unit) { viewModel.loadHardware() }
 
-    // 温度和电池这两张卡直接由实时采样生成，所以每秒重建；其余分类是同一批对象，
-    // 内容没变就不会触发重组，整张列表不会跟着每秒重画
+    // Temperature and battery cards are rebuilt from live samples; unchanged static categories
+    // retain their objects and do not cause the whole list to recompose each second.
     val all = remember(sections, live) {
         if (sections.isEmpty()) emptyList()
         else {
@@ -94,20 +94,19 @@ fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             (sections + derived).sortedBy { it.category.ordinal }
         }
     }
-    // 分成两步：关键词过滤的结果同时喂给分类芯片（让芯片上的数字就是「这一类命中几条」）
-    // 和列表；分类只在列表这一侧再收一次
+    // Keyword-filtered results feed both category counts and the list; category filtering applies only to the list.
     val afterQuery = remember(all, query) { filterSections(all, query) }
     val visible = remember(afterQuery, category) {
         afterQuery.filter { category == null || it.category == category }
     }
-    // 选中的分类被搜索结果排除掉时自动松开，否则会停在一个永远空着的页面上
+    // Clear a selected category excluded by the search results to avoid a permanently empty view.
     LaunchedEffect(afterQuery) {
         if (category != null && afterQuery.none { it.category == category }) category = null
     }
 
     Column(modifier.fillMaxSize()) {
-        // 关键读数常驻一条窄带，详细的实时卡片跟着列表一起滚——
-        // 车机屏幕只有 1200 高，实时面板钉死会把下面的清单挤得只剩一条缝
+        // Keep key readings in a narrow fixed strip; scroll detailed live cards with the list
+        // so they do not crowd out the inventory on a 1200-pixel-high head unit.
         LiveStrip(live)
         Toolbar(
             query = query,
@@ -125,7 +124,7 @@ fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
             else -> SectionGrid(
                 sections = visible,
                 filtering = query.isNotBlank(),
-                // 搜索或选了分类时不再插实时面板：它不是搜索结果的一部分
+                // Hide the live panel when searching or filtering; it is not a search result.
                 live = live.takeIf { query.isBlank() && category == null },
             )
         }
@@ -138,7 +137,7 @@ fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
 // 实时面板
 // ---------------------------------------------------------------------------
 
-/** 常驻窄带：只放最该一眼看到的几个数，一行放完。 */
+/** Persistent strip with key readings in one row. */
 @Composable
 private fun LiveStrip(live: LiveStats?) {
     val blocked = live != null && !live.systemLoadAvailable
@@ -191,8 +190,8 @@ private fun LivePanel(live: LiveStats?) {
         val cores = live?.cores.orEmpty()
         val hottest = live?.thermal?.mapNotNull { it.celsius }?.maxOrNull()
 
-        // /proc/stat 从安卓 11 起不再对普通应用开放，全局占用率读不到是常态而不是故障。
-        // 这时退而显示本应用自己的占用（/proc/self/stat 永远读得到），并说明原因
+        // Android 11 restricts /proc/stat for ordinary apps, so global utilization can be unavailable.
+        // Fall back to this app's utilization from /proc/self/stat and explain why.
         val blocked = live != null && !live.systemLoadAvailable
 
         @Composable
@@ -208,7 +207,7 @@ private fun LivePanel(live: LiveStats?) {
             )
             if (cores.isNotEmpty()) {
                 HorizontalDivider()
-                // 核心多的时候列表会很长，但这正是看大小核调度的地方，不折叠
+                // Keep all cores visible, even in a long list, to inspect big/little scheduling.
                 cores.forEach { CoreRow(it) }
             }
         }
@@ -257,7 +256,7 @@ private fun LivePanel(live: LiveStats?) {
                 label = "Highest temperature",
                 headline = HwFormat.celsius(hottest),
                 caption = live?.thermal?.maxByOrNull { it.celsius ?: -999f }?.type ?: "No readable temperature sensor",
-                // 以 100℃ 为满格：车机 SoC 到这个温度肯定已经在保护降频了
+                // Use 100°C as full scale; a head-unit SoC at that temperature is likely throttling.
                 fraction = hottest?.div(100f),
                 color = tempColor(hottest),
             )
@@ -269,7 +268,7 @@ private fun LivePanel(live: LiveStats?) {
                 HwRow("Voltage", battery.voltageMv?.let { "$it mV" } ?: HwItem.UNKNOWN)
                 HwRow("Battery temperature", HwFormat.celsius(battery.temperature))
             } else {
-                // 车机常态：直接吃整车 12V 电，没有自己的电池
+                // Head units commonly use the vehicle's 12V supply without their own battery.
                 HwRow("Battery", "No internal battery (vehicle-powered)")
                 HwRow("Power supply", battery?.plugged ?: HwItem.UNKNOWN)
             }
@@ -297,7 +296,7 @@ private fun LivePanel(live: LiveStats?) {
 }
 
 // ---------------------------------------------------------------------------
-// 工具条
+// Toolbar
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -354,7 +353,7 @@ private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) 
         selected = selected,
         onClick = onClick,
         label = { Text(label, maxLines = 1) },
-        // 和导航栏一样，选中态用强调蓝；绿色在这套配色里专表电量
+        // Use accent blue for selection; green is reserved for battery level.
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
             selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -391,8 +390,8 @@ private fun SectionCard(section: HwSection, filtering: Boolean) {
         section.blocks.forEachIndexed { index, block ->
             if (index > 0) HorizontalDivider()
             block.subtitle?.let { HwSubtitle(it) }
-            // 搜索时逐条都要看到；不搜索时长列表（系统属性有上千条）先截断，
-            // 免得一张卡片把整个列表撑爆
+            // Show all search matches; otherwise truncate long lists such as system properties
+            // to prevent one card from dominating the list.
             val cap = if (filtering) Int.MAX_VALUE else MAX_ROWS
             block.items.take(cap).forEach { HwRow(it.label, it.value) }
             if (block.items.size > cap) {
@@ -429,7 +428,7 @@ private fun Empty(query: String) {
 }
 
 // ---------------------------------------------------------------------------
-// 导出
+// Export
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -478,8 +477,8 @@ private fun HardwareExportDialog(
     )
 }
 
-/** 不搜索时单段最多显示多少行。系统属性那一段常有上千条。 */
+/** Maximum rows per section without a search; system properties can number in the thousands. */
 private const val MAX_ROWS = 40
 
-/** 弹窗里的预览上限，完整内容在文件里。 */
+/** Preview limit in the dialog; the file contains the full content. */
 private const val MAX_PREVIEW_CHARS = 20_000

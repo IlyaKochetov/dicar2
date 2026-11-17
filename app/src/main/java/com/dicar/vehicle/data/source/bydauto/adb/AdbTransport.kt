@@ -8,15 +8,15 @@ import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 
-/** 车机调试口无法连接 / 未授权 / 辅助进程起不来，统一抛这个，便于向用户展示友好原因。 */
+/** Reports debug-port connection, authorization and helper startup failures with a user-readable reason. */
 class AdbUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
- * 管理到车机本机 adbd（127.0.0.1:5555）的连接，并在其上启动/维持辅助进程 [com.dicar.vehicle.helper.HelperMain]。
+ * Manage the local head-unit adbd connection (127.0.0.1:5555) and helper process [com.dicar.vehicle.helper.HelperMain].
  *
- * - ADB 密钥持久化在 App 私有目录，首次连接触发车机「允许调试」弹窗（勾一律允许后不再弹）；
- * - 辅助进程以 shell 身份运行，App 通过它读写被签名权限保护的车辆数据；
- * - 所有外部方法都在 Repository 的单 IO 线程上调用，这里再用锁兜底防止重入。
+ * - ADB keys persist in app-private storage; the first connection prompts for debugging authorization;
+ * - The helper runs as shell and provides access to signature-protected vehicle data;
+ * - External methods run on the repository's single IO thread; a lock also prevents reentry.
  */
 class AdbTransport(context: Context) {
 
@@ -27,20 +27,20 @@ class AdbTransport(context: Context) {
     private var dadb: Dadb? = null
     private var session: HelperSession? = null
 
-    /** 快速探测调试口是否开着（不做握手），用于判断 BYDAuto-ADB 这条路是否值得尝试。 */
+    /** Probe whether the debug port is open without a handshake. */
     fun isPortOpen(): Boolean = try {
         Socket().use { it.connect(InetSocketAddress(HOST, PORT), PORT_PROBE_TIMEOUT_MS); true }
     } catch (e: Exception) {
         false
     }
 
-    /** 建立连接与辅助进程（已建立则直接返回），不可用时抛 [AdbUnavailableException]。 */
+    /** Establish the connection and helper if needed; throw [AdbUnavailableException] when unavailable. */
     fun ensureConnected() = synchronized(lock) { ensureSession(); Unit }
 
-    /** 发送一行请求，返回一行应答；连接/辅助进程异常时抛 [AdbUnavailableException]。 */
+    /** Send and receive one line; throw [AdbUnavailableException] on connection or helper failure. */
     fun request(line: String): String = withSession { it.request(line) }
 
-    /** 批量请求：一次往返完成全部子请求。 */
+    /** Batch requests into one round trip. */
     fun requestBatch(lines: List<String>): List<String> = withSession { it.requestBatch(lines) }
 
     private fun <T> withSession(block: (HelperSession) -> T): T = synchronized(lock) {
@@ -50,7 +50,7 @@ class AdbTransport(context: Context) {
         } catch (e: AdbUnavailableException) {
             throw e
         } catch (e: Exception) {
-            resetLocked() // 流坏了就整条重建，下一轮重新握手
+            resetLocked() // Reset the broken stream and reconnect on the next poll.
             throw AdbUnavailableException("与辅助进程通信失败：${e.message}", e)
         }
     }
@@ -62,7 +62,7 @@ class AdbTransport(context: Context) {
         val connection = dadb ?: createDadb().also { dadb = it }
 
         val apk = appContext.applicationInfo.sourceDir
-        // exec 让 app_process 取代 sh，流关闭时辅助进程随之退出；stdout 只走协议，日志走 logcat
+        // exec replaces sh with app_process so the helper exits when the stream closes; stdout carries protocol, logcat carries logs.
         val cmd = "CLASSPATH=$apk exec app_process /system/bin --nice-name=dicar_helper " +
             "com.dicar.vehicle.helper.HelperMain"
         val shell = try {

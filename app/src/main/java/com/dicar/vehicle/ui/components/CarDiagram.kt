@@ -29,14 +29,14 @@ import com.dicar.vehicle.ui.theme.carTyre
 import java.util.Locale
 
 /**
- * 车辆俯视孪生图，车头朝上。
+ * Top-down twin view of the vehicle, facing upward.
  *
- * 画法上刻意保持「浅色车身 + 细描边 + 深色轮胎」的干净观感：车身是一条贝塞尔
- * 勾出的轿车轮廓（不是方块拼的），玻璃用中性灰，只有**异常和动作**才上颜色——
- * 车门打开是红、转向灯是琥珀、充电是绿、雷达按距离从绿到红。
+ * The sedan body uses a Bézier outline, thin stroke, dark tires and neutral gray glass.
+ * Color highlights states and actions: red doors, amber indicators, green charging,
+ * and green-to-red radar according to distance.
  *
- * 每个部件都绑实时状态：四门开闭、四窗与天窗开度、四轮胎压胎温、转向灯、
- * 前后泊车雷达、充电枪。读不到的部件保持默认外观，不画成警示色。
+ * Components reflect live door, window, sunroof, tire, indicator, radar and charging states.
+ * Unavailable readings retain their default appearance rather than using warning colors.
  */
 @Composable
 fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
@@ -53,7 +53,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
     val onSurface = scheme.onSurface
     val dim = scheme.onSurfaceVariant
 
-    // 开合类状态都做动画：车门弹开、车窗升降、天窗滑移都应该是看得见的过程
+    // Animate door, window and sunroof movements so their transitions are visible.
     val doorFl by animateFloatAsState(if (state.doors.fl == true) 1f else 0f, label = "doorFl")
     val doorFr by animateFloatAsState(if (state.doors.fr == true) 1f else 0f, label = "doorFr")
     val doorRl by animateFloatAsState(if (state.doors.rl == true) 1f else 0f, label = "doorRl")
@@ -69,9 +69,8 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
     val driving = (state.speed ?: 0f) > 1f
     val charging = state.chargeGunConnected == true || state.chargeStatus == "Charging"
 
-    // 雷达工作时整车缩小，给车头车尾的三道弧让出空间。
-    // 按 0.82 的高度占比画，弧会伸到画布外被卡片边界切掉；0.68 才刚好容得下
-    // （最外圈弧距车身约 0.23 个车长）。倒车时视野拉远也符合直觉。
+    // Shrink the car while radar is active to leave room for three arcs at each end.
+    // At 0.82 height the arcs are clipped; 0.68 fits the outer arc, about 0.23 car lengths away.
     val radarActive = state.radar.hasAnyReading || state.radar.reverseSwitchOn == true
     val heightFraction by animateFloatAsState(
         targetValue = if (radarActive) 0.68f else 0.82f,
@@ -82,7 +81,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         val w = size.width
         val h = size.height
 
-        // 轿车比例约 1:2.35。先按高度算，放不下再按宽度收，保证四角标注有地方写
+        // Use a 1:2.35 sedan ratio, fitting height first and then width to leave space for corner labels.
         var bodyH = h * heightFraction
         var bodyW = bodyH * CAR_ASPECT
         if (bodyW > w * 0.40f) {
@@ -94,21 +93,21 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         val right = left + bodyW
         val bottom = top + bodyH
         val cx = left + bodyW / 2f
-        fun bx(f: Float) = left + bodyW * f      // 车身坐标系：0=左缘, 1=右缘
-        fun by(f: Float) = top + bodyH * f       // 0=车头, 1=车尾
+        fun bx(f: Float) = left + bodyW * f      // Body coordinates: 0 = left edge, 1 = right edge
+        fun by(f: Float) = top + bodyH * f       // 0 = front, 1 = rear
         val line = bodyW * 0.012f
 
         if (driving) drawLaneLines(dim, left, right, bodyW, h)
 
-        // ---- 车身轮廓 ----
+        // ---- Body outline ----
         val shell = carShell(left, top, bodyW, bodyH)
-        // 柔和投影：描两圈极淡的粗边当阴影，比 BlurMaskFilter 稳（硬件加速下不挑实现）
+        // Soft shadow: draw two faint thick outlines, more reliably than BlurMaskFilter with hardware acceleration.
         drawPath(shell, outline.copy(alpha = 0.06f), style = Stroke(width = line * 5f))
         drawPath(shell, outline.copy(alpha = 0.10f), style = Stroke(width = line * 2.5f))
         drawPath(shell, body)
         drawPath(shell, outline.copy(alpha = 0.55f), style = Stroke(width = line))
 
-        // ---- 四轮：车身最深的一块，先画以便车身边缘压在上面 ----
+        // ---- Wheels: draw the darkest elements first so the body overlaps their edges ----
         val tyreW = bodyW * 0.17f
         val tyreH = bodyH * 0.125f
         fun tyre(isLeft: Boolean, isFront: Boolean, kpa: Float?) {
@@ -122,7 +121,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
                 size = Size(tyreW, tyreH),
                 cornerRadius = r,
             )
-            // 描边：夜间车身外侧那半个轮子压在深背景上，没有这圈边就看不出轮廓
+            // Outline the outer wheel edges so they remain visible against a dark background.
             drawRoundRect(
                 color = outline.copy(alpha = 0.55f),
                 topLeft = Offset(x, y),
@@ -136,11 +135,11 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         tyre(isLeft = true, isFront = false, kpa = state.tirePressure.rl)
         tyre(isLeft = false, isFront = false, kpa = state.tirePressure.rr)
 
-        // 车身重画一次盖住轮胎内侧，轮子看起来是从车底伸出来的
+        // Redraw the body over the inner tires so the wheels appear beneath it.
         drawPath(shell, body)
         drawPath(shell, outline.copy(alpha = 0.55f), style = Stroke(width = line))
 
-        // ---- 引擎盖 / 后备箱：关闭时只有一条淡缝，打开时露出琥珀色开口 ----
+        // ---- Hood / trunk: a faint seam when closed and an amber opening when open ----
         fun lid(isHood: Boolean, openFraction: Float) {
             val bandH = bodyH * 0.075f
             val y = if (isHood) by(0.055f) else bottom - bandH - bodyH * 0.055f
@@ -148,7 +147,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
             if (openFraction > 0f) {
                 drawRoundRect(signal.copy(alpha = 0.75f), Offset(bx(0.16f), y), Size(bodyW * 0.68f, bandH), r)
             }
-            // 盖板：打开时从铰链侧缩短，露出下面的开口
+            // Shorten the panel from its hinge when open to reveal the opening.
             val visible = bandH * (1f - openFraction)
             val lidY = if (isHood) y + (bandH - visible) else y
             drawRoundRect(body, Offset(bx(0.16f), lidY), Size(bodyW * 0.68f, visible), r)
@@ -157,13 +156,13 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         lid(isHood = true, openFraction = hood)
         lid(isHood = false, openFraction = trunk)
 
-        // ---- 前后风挡 ----
-        // A 柱/C 柱都朝车顶收，所以前风挡是「靠车头那边宽」、后风挡「靠车尾那边宽」，
-        // 两块梯形的收口方向相反——画反了整台车会立刻显得别扭。
+        // ---- Front and rear windscreens ----
+        // The A and C pillars narrow toward the roof, so the front and rear windscreens
+        // taper in opposite directions.
         drawPath(trapezoid(bx(0.13f), by(0.198f), bx(0.87f), by(0.288f), inset = bodyW * 0.10f, wideAtBottom = false), glass)
         drawPath(trapezoid(bx(0.13f), by(0.662f), bx(0.87f), by(0.752f), inset = bodyW * 0.10f, wideAtBottom = true), glass)
 
-        // ---- 车顶 + 天窗 ----
+        // ---- Roof and sunroof ----
         val roofTop = by(0.30f)
         val roofBottom = by(0.65f)
         val roofRadius = CornerRadius(bodyW * 0.10f, bodyW * 0.10f)
@@ -173,7 +172,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         val roofGlassTop = by(0.335f)
         val roofGlassH = bodyH * 0.185f
         val roofGlassRadius = CornerRadius(bodyW * 0.06f, bodyW * 0.06f)
-        // 先画打开后露出的暗色开口，再把玻璃按开度往后滑
+        // Draw the dark opening first, then slide the glass back according to its opening.
         drawRoundRect(tyreColor.copy(alpha = 0.55f), Offset(bx(0.22f), roofGlassTop), Size(bodyW * 0.56f, roofGlassH), roofGlassRadius)
         val slide = roofGlassH * sunroof
         if (sunroof < 1f) {
@@ -185,10 +184,9 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
             )
         }
 
-        // ---- 四侧窗 ----
-        // 关着的窗只画一条发丝细的分缝，车停好时整台车是干净的；一旦降下来，
-        // 露出的那段就是车内的暗色，开多少一眼看得出。不用「玻璃块」表示关闭状态，
-        // 否则四条灰杠挂在车身上比车门还显眼。
+        // ---- Four side windows ----
+        // Closed windows use a fine seam; lowered windows reveal the dark interior.
+        // Avoid solid gray blocks for closed windows, which would dominate the body.
         fun sideWindow(isLeft: Boolean, isFront: Boolean, openFraction: Float) {
             val sw = bodyW * 0.045f
             val x = if (isLeft) bx(0.055f) else bx(0.90f)
@@ -206,7 +204,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         sideWindow(true, false, winRl)
         sideWindow(false, false, winRr)
 
-        // ---- 后视镜：车身两侧的小耳朵，贴在风挡下沿 ----
+        // ---- Mirrors: small projections beside the lower edge of the windscreen ----
         val mirrorW = bodyW * 0.13f
         val mirrorH = bodyH * 0.022f
         fun mirror(isLeft: Boolean) {
@@ -218,7 +216,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         mirror(isLeft = true)
         mirror(isLeft = false)
 
-        // ---- 尾灯：贯穿式，常驻淡红，是造型不是告警 ----
+        // ---- Tail light: continuous pale red styling, not an alert ----
         drawRoundRect(
             color = warn.copy(alpha = 0.30f),
             topLeft = Offset(bx(0.16f), by(0.935f)),
@@ -226,7 +224,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
             cornerRadius = CornerRadius(bodyH * 0.011f, bodyH * 0.011f),
         )
 
-        // ---- 车门：打开时绕前铰链向外转出 ----
+        // ---- Doors: rotate outward around the front hinges ----
         fun door(isLeft: Boolean, isFront: Boolean, openFraction: Float) {
             if (openFraction <= 0.001f) return
             val dw = bodyW * 0.30f
@@ -246,7 +244,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         door(isLeft = true, isFront = false, openFraction = doorRl)
         door(isLeft = false, isFront = false, openFraction = doorRr)
 
-        // ---- 转向灯：车头外侧的小箭头，画在胎压标注上方，不跟数字抢位置 ----
+        // ---- Indicators: small arrows outside the front, above the tire pressure labels ----
         fun turnArrow(isLeft: Boolean, on: Boolean?) {
             if (on != true) return
             val s = bodyW * 0.09f
@@ -265,7 +263,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         turnArrow(isLeft = true, on = state.turnLeft)
         turnArrow(isLeft = false, on = state.turnRight)
 
-        // ---- 充电：充电口在左前翼子板，连枪时亮绿并在车身内显示电量填充 ----
+        // ---- Charging: the left front port glows green and the body shows charge fill when connected ----
         if (charging) {
             drawCircle(charge, radius = bodyW * 0.055f, center = Offset(left, by(0.20f)))
             drawCircle(charge.copy(alpha = 0.25f), radius = bodyW * 0.11f, center = Offset(left, by(0.20f)))
@@ -281,14 +279,14 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
         }
 
         // ---- 泊车雷达 ----
-        // 只有「雷达真的在工作」时才画弧：读不到探头或者没倒车时画一圈灰弧，
-        // 既不传达信息又会穿过中间的车速数字。
+        // Draw arcs only while radar is active; gray arcs without readings or reverse gear
+        // convey no information and cross the central speed reading.
         if (radarActive) {
             drawRadar(state.radar.front, Offset(cx, top), upward = true, bodyW = bodyW, bodyH = bodyH, warn = warn, near = signal, far = charge, idle = outline)
             drawRadar(state.radar.rear, Offset(cx, bottom), upward = false, bodyW = bodyW, bodyH = bodyH, warn = warn, near = signal, far = charge, idle = outline)
         }
 
-        // ---- 四角胎压胎温标注 ----
+        // ---- Tire pressure and temperature labels at the four corners ----
         val big = Paint().apply {
             isAntiAlias = true
             textSize = bodyH * 0.062f
@@ -313,7 +311,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
                 abnormal -> warn.toArgb()
                 else -> onSurface.toArgb()
             }
-            // 车机常量是 kPa，这里按行业习惯换算成 bar 展示（概念稿也是 bar）
+            // Convert the head-unit pressure from kPa to bar for display.
             val bar = kpa?.let { String.format(Locale.US, "%.1f", it / 100f) } ?: "--"
             val caption = "bar" + (temp?.let { " · ${Math.round(it)}℃" } ?: "")
             drawIntoCanvas { canvas ->
@@ -328,15 +326,15 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
     }
 }
 
-/** 车身宽高比（宽 ÷ 长）。轿车俯视大约 1:2.35。 */
+/** Body aspect ratio (width / length), approximately 1:2.35 for a sedan. */
 private const val CAR_ASPECT = 0.425f
 private const val MAX_DOOR_ANGLE = 58f
 private const val TYRE_MIN_KPA = 190f
 private const val TYRE_MAX_KPA = 300f
 
 /**
- * 轿车俯视轮廓：车头比车尾略收、两侧中段微鼓，用三次贝塞尔勾出来。
- * 整条路径左右对称，改一边的控制点要记得同步另一边。
+ * Top-down sedan outline drawn with cubic Béziers: narrower at the front and slightly wider at the middle.
+ * The path is symmetric; synchronize control points on both sides.
  */
 private fun carShell(left: Float, top: Float, w: Float, h: Float): Path {
     val right = left + w
@@ -344,11 +342,11 @@ private fun carShell(left: Float, top: Float, w: Float, h: Float): Path {
     val cx = left + w / 2f
     return Path().apply {
         moveTo(cx, top)
-        // 右前角 → 右侧 → 右后角
+        // Front right → right side → rear right
         cubicTo(cx + w * 0.34f, top, right, top + h * 0.035f, right, top + h * 0.135f)
         cubicTo(right + w * 0.015f, top + h * 0.37f, right + w * 0.015f, top + h * 0.63f, right, top + h * 0.875f)
         cubicTo(right, bottom - h * 0.022f, cx + w * 0.36f, bottom, cx, bottom)
-        // 左半边镜像
+        // Mirror the left side
         cubicTo(cx - w * 0.36f, bottom, left, bottom - h * 0.022f, left, top + h * 0.875f)
         cubicTo(left - w * 0.015f, top + h * 0.63f, left - w * 0.015f, top + h * 0.37f, left, top + h * 0.135f)
         cubicTo(left, top + h * 0.035f, cx - w * 0.34f, top, cx, top)
@@ -356,7 +354,7 @@ private fun carShell(left: Float, top: Float, w: Float, h: Float): Path {
     }
 }
 
-/** 风挡用的梯形：[wideAtBottom] 决定窄边在上还是在下（前风挡上窄下宽，后风挡反过来）。 */
+/** Windscreen trapezoid: [wideAtBottom] selects which end is wider. */
 private fun trapezoid(l: Float, t: Float, r: Float, b: Float, inset: Float, wideAtBottom: Boolean): Path = Path().apply {
     if (wideAtBottom) {
         moveTo(l + inset, t); lineTo(r - inset, t); lineTo(r, b); lineTo(l, b)
@@ -367,8 +365,8 @@ private fun trapezoid(l: Float, t: Float, r: Float, b: Float, inset: Float, wide
 }
 
 /**
- * 行驶时两侧滚动的车道线，用系统时间驱动，纯装饰。
- * 车道线贴着车身画（不是贴画布边缘），否则宽屏下会被甩到十万八千里外。
+ * Decorative lane lines scroll with system time while driving.
+ * Draw them near the body rather than the canvas edge to keep them close on wide screens.
  */
 private fun DrawScope.drawLaneLines(color: Color, left: Float, right: Float, bodyW: Float, h: Float) {
     val dash = h * 0.07f
@@ -385,8 +383,8 @@ private fun DrawScope.drawLaneLines(color: Color, left: Float, right: Float, bod
 }
 
 /**
- * 车头/车尾的雷达弧。[levels] 是该侧各探头的等级（0 最近、6 最远，null = 没探到）。
- * 障碍越近点亮的弧越多，颜色从绿经琥珀到红。
+ * Front/rear radar arcs. [levels] contains probe levels (0 closest, 6 farthest, null unavailable).
+ * Closer obstacles illuminate more arcs, changing from green through amber to red.
  */
 private fun DrawScope.drawRadar(
     levels: List<Int?>,
@@ -403,7 +401,7 @@ private fun DrawScope.drawRadar(
     val arcs = 3
     val gap = bodyH * 0.030f
     for (i in 0 until arcs) {
-        // 第 0 条最贴车身，代表最近的一档
+        // Arc zero is closest to the body and represents the nearest level.
         val threshold = (i + 1) * (Radar.OBSTACLE_MAX / arcs.toFloat())
         val lit = nearest != null && nearest <= threshold
         val color = when {

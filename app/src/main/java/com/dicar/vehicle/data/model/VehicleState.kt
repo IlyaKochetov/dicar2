@@ -1,37 +1,37 @@
 package com.dicar.vehicle.data.model
 
 /**
- * 车辆状态快照。所有字段均可空：null = 接口不支持 / 读取失败 / 返回异常值，UI 统一显示「N/A」。
+ * Vehicle state snapshot. Nullable fields use null for unsupported, failed or invalid readings; the UI displays N/A.
  *
- * 数据源只负责“尽量填”，不要在这里放默认值（0 和“没读到”在仪表上含义完全不同）。
+ * Data sources fill what they can; do not substitute defaults, since zero and unavailable have different meanings.
  */
 data class VehicleState(
-    // ---------------- 动力与行驶 (F01-F08) ----------------
+    // ---------------- Powertrain and driving (F01-F08) ----------------
     val speed: Float? = null,                 // km/h
     val engineRpm: Int? = null,               // rpm
     val motorRpmFront: Int? = null,           // rpm
     val motorRpmRear: Int? = null,            // rpm
-    val power: Float? = null,                 // kW，整车总功率（正=驱动，负=回收）
+    val power: Float? = null,                 // kW, total vehicle power (positive = drive, negative = regeneration)
     val motorPower: Float? = null,            // kW
     val enginePower: Float? = null,           // kW
     val accelerator: Float? = null,           // %，0-100
     val brake: Float? = null,                 // %，0-100
     val gear: String? = null,                 // P/R/N/D/S...
-    val workMode: String? = null,             // EV / HEV / 强制EV ...
-    val driveMode: String? = null,            // ECO / 正常 / 运动 ...
+    val workMode: String? = null,             // EV / HEV / forced EV ...
+    val driveMode: String? = null,            // ECO / Normal / Sport ...
 
-    // ---------------- 电池与能量 (F09-F17) ----------------
+    // ---------------- Battery and energy (F09-F17) ----------------
     val soc: Float? = null,                   // %
     val batteryTempMax: Float? = null,        // ℃
     val batteryTempMin: Float? = null,        // ℃
     val batteryTempAvg: Float? = null,        // ℃
-    val batteryVoltage: Float? = null,        // V，动力电池总电压
+    val batteryVoltage: Float? = null,        // V, traction battery pack voltage
     val cellVoltageMax: Float? = null,        // V
     val cellVoltageMin: Float? = null,        // V
-    val batteryCurrent: Float? = null,        // A（正=放电，负=充电）
-    val batteryPower: Float? = null,          // kW（正=放电，负=充电/回收）
+    val batteryCurrent: Float? = null,        // A (positive = discharge, negative = charge)
+    val batteryPower: Float? = null,          // kW (positive = discharge, negative = charging/regeneration)
     val chargeGunConnected: Boolean? = null,
-    val chargeStatus: String? = null,         // 充电中 / 已完成 / 未充电 ...
+    val chargeStatus: String? = null,         // Charging / complete / not charging ...
     val remainRangeElec: Int? = null,         // km
     val remainRangeFuel: Int? = null,         // km
     val fuelPercent: Float? = null,           // %
@@ -41,65 +41,65 @@ data class VehicleState(
     val tripFuelConsumption: Float? = null,     // L/100km
     val voltage12V: Float? = null,            // V
 
-    // ---------------- 空调与舒适 (F18-F25) ----------------
+    // ---------------- Climate and comfort (F18-F25) ----------------
     val acOn: Boolean? = null,
     val acAuto: Boolean? = null,
-    val acTempDriver: Float? = null,          // ℃，0.5 步进
+    val acTempDriver: Float? = null,          // °C, 0.5 increments
     val acTempPassenger: Float? = null,       // ℃
     val acFanLevel: Int? = null,              // 0-7
     val acWindMode: AcWindMode? = null,
     val acCycle: AcCycleMode? = null,
     val insideTemp: Float? = null,            // ℃
     val outsideTemp: Float? = null,           // ℃
-    val seatHeatDriver: Int? = null,          // 0=关, 1-3 档
+    val seatHeatDriver: Int? = null,          // 0 = off, levels 1–3
     val seatHeatPassenger: Int? = null,
     val seatVentDriver: Int? = null,
     val seatVentPassenger: Int? = null,
 
-    // ---------------- 车身与安全 (F26-F32) ----------------
+    // ---------------- Body and safety (F26-F32) ----------------
     val doors: Openings = Openings(),
-    val windowPercent: Wheels<Int> = Wheels(),  // 四门车窗开度 %
+    val windowPercent: Wheels<Int> = Wheels(),  // Four door window openings, %
     val sunroofPercent: Int? = null,
     val sunshadePercent: Int? = null,
     val tirePressure: Wheels<Float> = Wheels(), // kPa
     val tireTemp: Wheels<Float> = Wheels(),     // ℃
-    val steeringAngle: Float? = null,           // °，左负右正
-    val seatbeltDriver: Boolean? = null,        // true = 已系
+    val steeringAngle: Float? = null,           // degrees, negative left and positive right
+    val seatbeltDriver: Boolean? = null,        // true = fastened
     val seatbeltPassenger: Boolean? = null,
-    val passengerPresent: Boolean? = null,      // 副驾乘员检测：没人时安全带信号本来就不可信
-    val windowAntiPinch: Boolean? = null,       // 车窗防夹
+    val passengerPresent: Boolean? = null,      // Passenger detection: the belt signal is unreliable when unoccupied
+    val windowAntiPinch: Boolean? = null,       // Window anti-pinch
     val turnLeft: Boolean? = null,
     val turnRight: Boolean? = null,
     val radar: Radar = Radar(),
 
-    // ---------------- 其他 (F33-F37) ----------------
+    // ---------------- Other (F33-F37) ----------------
     val totalMileage: Float? = null,          // km
     val tripMileage: Float? = null,           // km
     val altitude: Float? = null,              // m
     val slope: Float? = null,                 // °
     val pm25: Int? = null,                    // μg/m³
 
-    // ---------------- 元信息 ----------------
-    val acTempStep: Float = 0.5f,             // 数据源支持的温度调节步进（BYDAuto 接口只收整数 ℃）
-    val seatMaxLevel: Int = 3,                // 数据源支持的座椅加热/通风最高档（迪加只有 2 档）
+    // ---------------- Metadata ----------------
+    val acTempStep: Float = 0.5f,             // Temperature step supported by the source (BYDAuto accepts integer °C only)
+    val seatMaxLevel: Int = 3,                // Maximum seat heating/ventilation level supported by the source (DiPlus has two)
     val source: DataSourceType? = null,
     val timestamp: Long = 0L,
-    val error: String? = null,                // 整个数据源不可用时的说明
+    val error: String? = null,                // Explanation when the entire source is unavailable
 ) {
-    /** 仪表盘主转速：有发动机转速就用它，否则用电机转速（取绝对值较大的一侧）。 */
+    /** Dashboard RPM: prefer engine RPM, otherwise use the motor RPM with the larger absolute value. */
     val displayRpm: Int?
         get() = engineRpm ?: listOfNotNull(motorRpmFront, motorRpmRear).maxByOrNull { kotlin.math.abs(it) }
 
     val displayRpmLabel: String
         get() = if (engineRpm != null) "Engine RPM" else "Motor RPM"
 
-    /** 单体压差（mV），由最高/最低单体电压推算。 */
+    /** Cell voltage difference (mV), derived from maximum and minimum cell voltages. */
     val cellVoltageDiffMv: Float?
         get() = if (cellVoltageMax != null && cellVoltageMin != null) {
             (cellVoltageMax - cellVoltageMin) * 1000f
         } else null
 
-    /** F37 能量流：根据功率与转速粗略推断。数据不足时返回 null。 */
+    /** F37 energy flow, roughly inferred from power and RPM; null when data is insufficient. */
     val energyFlow: String?
         get() {
             val engineRunning = (engineRpm ?: 0) > 300
@@ -121,9 +121,9 @@ data class VehicleState(
 }
 
 /**
- * 用已有读数补齐可推算的字段（只补 null，不覆盖数据源给的值）：
- * - 电池功率 = 总电压 × 电流；
- * - 瞬时电耗 = 功率 / 车速 × 100（kW ÷ km/h = kWh/km），车速过低时无意义不计算。
+ * Fill derivable fields from existing readings only when null, without overwriting source values:
+ * - Battery power = pack voltage × current;
+ * - Instant consumption = power / speed × 100 (kW / km/h = kWh/km); omitted at very low speed.
  */
 fun VehicleState.withDerivedValues(): VehicleState {
     val batPower = batteryPower
@@ -138,10 +138,10 @@ fun VehicleState.withDerivedValues(): VehicleState {
 }
 
 /**
- * 泊车雷达各探头的障碍等级（BYDAutoRadarDevice.getRadarProbeState(区域)）。
+ * Parking radar probe obstacle levels (BYDAutoRadarDevice.getRadarProbeState(zone)).
  *
- * 车机常量：RADAR_OBSTACLE_DISTANCE_MIN=0 / MAX=6（等级，越小越近）、SAFE=14（无障碍）。
- * 等级与实际厘米的对应关系尚未在实车核对，先原样展示。[?]
+ * Head-unit constants: RADAR_OBSTACLE_DISTANCE_MIN=0 / MAX=6 (lower is closer), SAFE=14 (clear).
+ * The mapping from levels to centimeters has not been verified on a vehicle; display raw levels. [?]
  */
 data class Radar(
     val frontLeft: Int? = null,
@@ -155,14 +155,14 @@ data class Radar(
     val right: Int? = null,
     val reverseSwitchOn: Boolean? = null,
 ) {
-    /** 车机用 14 表示「安全/无障碍」，只有 0..6 才是真的探到东西。 */
+    /** The head unit uses 14 for clear; only 0..6 indicate an obstacle. */
     private fun level(v: Int?): Int? = v?.takeIf { it in OBSTACLE_MIN..OBSTACLE_MAX }
 
     val front: List<Int?> get() = listOf(level(frontLeft), level(frontLeftMid), level(frontRightMid), level(frontRight))
     val rear: List<Int?> get() = listOf(level(rearLeft), level(rearMid), level(rearRight))
     val sides: List<Int?> get() = listOf(level(left), level(right))
 
-    /** 最近的障碍等级（越小越近）；没有探到返回 null。 */
+    /** Nearest obstacle level (lower is closer), or null when none is detected. */
     val nearest: Int? get() = (front + rear + sides).filterNotNull().minOrNull()
 
     val hasAnyReading: Boolean
@@ -176,7 +176,7 @@ data class Radar(
     }
 }
 
-/** 四轮/四门通用容器：FL 左前、FR 右前、RL 左后、RR 右后。 */
+/** Four-wheel/door container: FL front left, FR front right, RL rear left, RR rear right. */
 data class Wheels<T>(
     val fl: T? = null,
     val fr: T? = null,
@@ -186,7 +186,7 @@ data class Wheels<T>(
     fun toList(): List<T?> = listOf(fl, fr, rl, rr)
 }
 
-/** 四门两盖开闭状态：true = 打开。 */
+/** Four doors and two lids: true means open. */
 data class Openings(
     val fl: Boolean? = null,
     val fr: Boolean? = null,
