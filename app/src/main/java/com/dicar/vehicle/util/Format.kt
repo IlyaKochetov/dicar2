@@ -20,19 +20,19 @@ object Format {
 
     fun openClose(open: Boolean?): String = when (open) {
         null -> NA
-        true -> "开"
-        false -> "关"
+        true -> "On"
+        false -> "Off"
     }
 
     fun onOff(on: Boolean?): String = when (on) {
         null -> NA
-        true -> "开启"
-        false -> "关闭"
+        true -> "Open"
+        false -> "Closed"
     }
 
     fun level(level: Int?): String = when (level) {
         null -> NA
-        0 -> "关"
-        else -> "$level 档"
+        0 -> "Off"
+        else -> "Level $level"
     }
 }
