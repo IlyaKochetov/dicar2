@@ -42,7 +42,7 @@ class SectionDslTest {
         val s = section(HwCategory.GPU) {
             block { item("Vulkan", true); item("NFC", false); item("未知项", null as Boolean?) }
         }
-        assertEquals(listOf("支持", "不支持", HwItem.UNKNOWN), s.blocks[0].items.map { it.value })
+        assertEquals(listOf("Supported", "Unsupported", HwItem.UNKNOWN), s.blocks[0].items.map { it.value })
     }
 
     @Test
