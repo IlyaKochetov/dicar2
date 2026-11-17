@@ -1,10 +1,102 @@
-# DiCar 车况 · DiCar Vehicle HMI
+# DiCar International · English BYD DiLink Dashboard
 
-[简体中文](#简体中文) · [English](#english)
+English-first fork of [tsix2019/dicar2](https://github.com/tsix2019/dicar2). This fork translates on-device interface text while preserving BYDAuto and DiPlus command protocols. Vehicle compatibility and control commands must be validated on a parked car.
+
+[English](#english) · [简体中文](#简体中文)
 
 <p align="center">
-  <img src="docs/images/twin-dark.png" width="100%" alt="孪生主页 / Twin dashboard">
+  <img src="docs/images/twin-dark.png" width="100%" alt="Twin dashboard">
 </p>
+
+---
+
+## English
+
+A local vehicle dashboard and control app for BYD DiLink head units: reads live vehicle data,
+renders a digital-twin dashboard, controls climate and windows, and offers a configurable
+floating overlay.
+
+**All vehicle data is processed on-device and never uploaded.** The app makes exactly one kind of
+external network request: the update check asks GitHub for the latest release tag, and by default
+that only happens when you tap "check for updates" (an opt-in "check on launch" toggle exists in
+settings). The request carries no vehicle data and no device identifier.
+
+Everything the hardware page reads also stays on the device. Exported reports **redact serial
+numbers, MAC addresses, IPs, the Android ID and similar device-identifying fields by default** —
+there is a switch in the export dialog if you need them. That page also deliberately avoids
+requesting location permission, at the cost of not being able to show the Wi-Fi SSID or BSSID
+(Android has gated those behind location since 8.1).
+
+> ⚠️ Personal project, not affiliated with BYD. All interfaces come from public
+> reverse-engineering work and vary a lot across models and firmware — use at your own risk.
+> Control features (windows, sunroof, climate) physically actuate the car.
+
+### Features
+
+| | |
+|---|---|
+| **Twin dashboard** | Three columns in landscape: a large RPM dial on the left; big speed readout plus a top-down car view (doors, window/sunroof position, tyre pressure and temperature, turn signals, parking radar — all live) in the middle; a bidirectional drive/regen power bar with battery and fuel levels on the right. A bottom strip carries the 3-minute trend chart (an engine-RPM series appears automatically once the engine kicks in) and climate/tyre/door status pills. Stacks vertically in portrait |
+| **3D car model** | Optional, off by default. Swaps the twin view for a drag-to-rotate, pinch-to-zoom 3D car whose doors, windows, wheel rotation and turn signals all track live data. The mesh is generated procedurally in code — no 3D engine dependency and no external model files |
+| **Card view** | Full readouts grouped into powertrain, battery, climate, body and misc |
+| **Controls** | A/C power, temperature, fan, vent mode, recirculation, seat heating/ventilation, all four windows, sunroof, sunshade, windshield defrost |
+| **Floating overlay** | Floats above other apps; which blocks to show (readout / gauges / chart / twin view / details) and the opacity are configurable, and it is draggable |
+| **Foreground service** | Keeps polling in the background with a persistent "speed \| SoC \| A/C" notification |
+| **Hardware info** | A full inventory of the head unit **itself**: SoC and big.LITTLE clusters, live per-core frequency and load, GPU limits and extensions, RAM/storage/partitions, displays, sensors, cameras, radios, audio, codecs and DRM, plus every system property (often well over a thousand). Searchable, filterable by category, and exportable as text |
+| **Update check** | Compares against the latest GitHub release; opens the release page or the APK directly. Manual by default; "check on launch" is opt-in |
+| **Interface probe** | One tap dumps every `android.hardware.bydauto.*` class, constant, method and current value from the head unit — the basis for porting to other models |
+
+### How it gets the data
+
+Vehicle data lives behind the head unit's `android.hardware.bydauto.*` framework, but reads and
+writes are guarded by **signature-level** `BYDAUTO_*_GET/SET` permissions, so a third-party app
+calling them directly is rejected by the vehicle service (`permission deny`). The app provides two
+channels and picks whichever works:
+
+1. **Wireless-debugging channel (primary)** — a built-in ADB client connects to the head unit's own
+   `127.0.0.1:5555`, launches a helper process via `app_process` under the shell identity, and that
+   helper talks to `BYDAutoDeviceManager`. The head unit shows its "allow debugging" prompt once.
+   A full polling round costs a **single** round trip thanks to request batching.
+2. **In-process channel (fallback)** — plain reflection, which works on more permissive firmware.
+
+A DiPlus local HTTP API is supported as an alternative data source.
+
+### Build
+
+Requires JDK 17 and the Android SDK (platform 35 / build-tools 35); point `local.properties` at your SDK.
+
+```bash
+./gradlew assembleRelease   # output in app/build/outputs/apk/release/
+./gradlew testDebugUnitTest
+```
+
+### Install
+
+Grab the APK from [Releases](https://github.com/IlyaKochetov/dicar2/releases), or build it yourself.
+
+```bash
+adb connect <head-unit-ip>:5555
+adb install -r app-release.apk
+```
+
+> If you previously side-loaded a self-built (debug-signed) build from before 0.1.0, installing over
+> it fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — Android does not allow a signing-key change.
+> Run `adb uninstall com.dicar.vehicle` once; every release from 0.1.0 on upgrades in place.
+
+Enable wireless ADB on the head unit, open the app, pick "Auto" or "BYDAuto only" in settings, and
+accept the "allow debugging" prompt on the head unit.
+
+### Porting to other models
+
+`BydApiMap.kt` holds every interface mapping (method names, FID symbols, value encodings) in one
+place — porting to a different car is mostly editing that single file. Each entry carries a
+provenance tag: `[D4]` confirmed present in a DiLink 4.0 probe report, `[D3]`/`[D5]` verified on a
+real DiLink 3/5 car in public research, `[?]` guessed and needing verification via
+**Settings → Probe BYDAuto interfaces**.
+
+### License
+
+MIT. Built on public research from [BYDMate](https://github.com/AndyShaman/BYDMate) and
+[byd-apps](https://github.com/wheregoes/byd-apps).
 
 ---
 
@@ -82,7 +174,7 @@ keyPassword=...
 
 ### 安装与首次使用
 
-APK 可以直接从 [Releases](https://github.com/tsix2019/dicar2/releases) 下载，也可以自己编译。
+APK 可以直接从 [Releases](https://github.com/IlyaKochetov/dicar2/releases) 下载，也可以自己编译。
 
 ```bash
 adb connect <车机IP>:5555
@@ -116,90 +208,3 @@ MIT。参考过的公开资料：[BYDMate](https://github.com/AndyShaman/BYDMate
 
 ---
 
-## English
-
-A local vehicle dashboard and control app for BYD DiLink head units: reads live vehicle data,
-renders a digital-twin dashboard, controls climate and windows, and offers a configurable
-floating overlay.
-
-**All vehicle data is processed on-device and never uploaded.** The app makes exactly one kind of
-external network request: the update check asks GitHub for the latest release tag, and by default
-that only happens when you tap "check for updates" (an opt-in "check on launch" toggle exists in
-settings). The request carries no vehicle data and no device identifier.
-
-Everything the hardware page reads also stays on the device. Exported reports **redact serial
-numbers, MAC addresses, IPs, the Android ID and similar device-identifying fields by default** —
-there is a switch in the export dialog if you need them. That page also deliberately avoids
-requesting location permission, at the cost of not being able to show the Wi-Fi SSID or BSSID
-(Android has gated those behind location since 8.1).
-
-> ⚠️ Personal project, not affiliated with BYD. All interfaces come from public
-> reverse-engineering work and vary a lot across models and firmware — use at your own risk.
-> Control features (windows, sunroof, climate) physically actuate the car.
-
-### Features
-
-| | |
-|---|---|
-| **Twin dashboard** | Three columns in landscape: a large RPM dial on the left; big speed readout plus a top-down car view (doors, window/sunroof position, tyre pressure and temperature, turn signals, parking radar — all live) in the middle; a bidirectional drive/regen power bar with battery and fuel levels on the right. A bottom strip carries the 3-minute trend chart (an engine-RPM series appears automatically once the engine kicks in) and climate/tyre/door status pills. Stacks vertically in portrait |
-| **3D car model** | Optional, off by default. Swaps the twin view for a drag-to-rotate, pinch-to-zoom 3D car whose doors, windows, wheel rotation and turn signals all track live data. The mesh is generated procedurally in code — no 3D engine dependency and no external model files |
-| **Card view** | Full readouts grouped into powertrain, battery, climate, body and misc |
-| **Controls** | A/C power, temperature, fan, vent mode, recirculation, seat heating/ventilation, all four windows, sunroof, sunshade, windshield defrost |
-| **Floating overlay** | Floats above other apps; which blocks to show (readout / gauges / chart / twin view / details) and the opacity are configurable, and it is draggable |
-| **Foreground service** | Keeps polling in the background with a persistent "speed \| SoC \| A/C" notification |
-| **Hardware info** | A full inventory of the head unit **itself**: SoC and big.LITTLE clusters, live per-core frequency and load, GPU limits and extensions, RAM/storage/partitions, displays, sensors, cameras, radios, audio, codecs and DRM, plus every system property (often well over a thousand). Searchable, filterable by category, and exportable as text |
-| **Update check** | Compares against the latest GitHub release; opens the release page or the APK directly. Manual by default; "check on launch" is opt-in |
-| **Interface probe** | One tap dumps every `android.hardware.bydauto.*` class, constant, method and current value from the head unit — the basis for porting to other models |
-
-### How it gets the data
-
-Vehicle data lives behind the head unit's `android.hardware.bydauto.*` framework, but reads and
-writes are guarded by **signature-level** `BYDAUTO_*_GET/SET` permissions, so a third-party app
-calling them directly is rejected by the vehicle service (`permission deny`). The app provides two
-channels and picks whichever works:
-
-1. **Wireless-debugging channel (primary)** — a built-in ADB client connects to the head unit's own
-   `127.0.0.1:5555`, launches a helper process via `app_process` under the shell identity, and that
-   helper talks to `BYDAutoDeviceManager`. The head unit shows its "allow debugging" prompt once.
-   A full polling round costs a **single** round trip thanks to request batching.
-2. **In-process channel (fallback)** — plain reflection, which works on more permissive firmware.
-
-A DiPlus local HTTP API is supported as an alternative data source.
-
-### Build
-
-Requires JDK 17 and the Android SDK (platform 35 / build-tools 35); point `local.properties` at your SDK.
-
-```bash
-./gradlew assembleRelease   # output in app/build/outputs/apk/release/
-./gradlew testDebugUnitTest
-```
-
-### Install
-
-Grab the APK from [Releases](https://github.com/tsix2019/dicar2/releases), or build it yourself.
-
-```bash
-adb connect <head-unit-ip>:5555
-adb install -r app-release.apk
-```
-
-> If you previously side-loaded a self-built (debug-signed) build from before 0.1.0, installing over
-> it fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — Android does not allow a signing-key change.
-> Run `adb uninstall com.dicar.vehicle` once; every release from 0.1.0 on upgrades in place.
-
-Enable wireless ADB on the head unit, open the app, pick "Auto" or "BYDAuto only" in settings, and
-accept the "allow debugging" prompt on the head unit.
-
-### Porting to other models
-
-`BydApiMap.kt` holds every interface mapping (method names, FID symbols, value encodings) in one
-place — porting to a different car is mostly editing that single file. Each entry carries a
-provenance tag: `[D4]` confirmed present in a DiLink 4.0 probe report, `[D3]`/`[D5]` verified on a
-real DiLink 3/5 car in public research, `[?]` guessed and needing verification via
-**Settings → Probe BYDAuto interfaces**.
-
-### License
-
-MIT. Built on public research from [BYDMate](https://github.com/AndyShaman/BYDMate) and
-[byd-apps](https://github.com/wheregoes/byd-apps).
