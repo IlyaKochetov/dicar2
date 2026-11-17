@@ -21,14 +21,14 @@ import com.dicar.vehicle.util.ValueSanitizer
 import kotlin.math.roundToInt
 
 /**
- * 主数据源：反射调用车机 framework 的 android.hardware.bydauto.*。
+ * Primary source: reflectively calls android.hardware.bydauto.* in the head-unit framework.
  *
- * 两条通道（见 [BydAccess]）自动择一：
- * - [AdbBydAccess]：车机调试口开着时走辅助进程（调试身份），多数 DiLink 只有这条能真正读到数据；
- * - [InProcessBydAccess]：App 自身进程直连（权限允许时）。
+ * Automatically select one of two channels (see [BydAccess]):
+ * - [AdbBydAccess]: helper process under the debugging identity when the debug port is enabled;
+ * - [InProcessBydAccess]: direct app-process access when permissions allow.
  *
- * 读哪个接口、什么编码全部在 [BydApiMap] 配置；这里只做「按表读 → 换算 → 范围校验」。
- * 实车上某项 N/A 时：跑「设置 → 探测 BYDAuto 接口」，对照报告改 BydApiMap。
+ * [BydApiMap] configures interfaces and encodings; this class reads, converts and validates ranges.
+ * For unavailable readings on a vehicle, run Settings → Probe BYDAuto interfaces and compare the report with BydApiMap.
  */
 class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleDataSource {
 
@@ -39,7 +39,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     private val inProcess = InProcessBydAccess(context)
 
     private var active: BydAccess? = null
-    private lateinit var current: BydAccess // 本次 read/execute 使用的通道
+    private lateinit var current: BydAccess // Channel used for this read/execute
 
     private fun pickAccess(): BydAccess? = when {
         adb.probeAvailable() -> adb
@@ -53,12 +53,12 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     }
 
     /**
-     * 当前可用的读写通道，供「探测 BYDAuto 接口」复用——探测工具必须走同一条通道，
-     * 否则在进程内调用会全部 permission deny，报告里看不到任何真实读数。
+     * Available channel for the BYDAuto probe; it must use the same channel to avoid
+     * permission-denied in-process calls hiding real readings.
      */
     fun acquireAccess(): BydAccess? = runCatching { acquire() }.getOrNull()
 
-    /** 建立/校验通道并记为当前通道；不可用时抛出带原因的异常。 */
+    /** Establish or validate and select the channel; throw with a reason if unavailable. */
     private fun acquire(): BydAccess {
         val a = active ?: pickAccess()?.also { active = it }
             ?: throw IllegalStateException("Head unit debug port (127.0.0.1:5555) not found; enable wireless debugging")
@@ -68,11 +68,11 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     }
 
     // ------------------------------------------------------------------
-    // 读
+    // Read
     // ------------------------------------------------------------------
 
-    // 两遍构建：第一遍把映射表里用到的来源全部登记下来，一次批量取回，第二遍再用缓存填值。
-    // 这样一轮轮询只有一次跨进程往返，而不是每个字段一次。
+    // Build in two passes: collect mapped sources and batch-fetch them, then populate from the cache.
+    // This uses one cross-process round trip per poll instead of one per field.
     private var collecting = false
     private val collected = LinkedHashSet<Src>()
     private var cache: Map<Src, CallResult> = emptyMap()
@@ -83,7 +83,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
         collecting = true
         collected.clear()
         cache = emptyMap()
-        buildState() // 丢弃结果，只为收集
+        buildState() // Discard the result; this pass only collects sources.
         collecting = false
 
         cache = fetchAll(collected.toList())
@@ -101,7 +101,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             }
             is Src.Fid -> {
                 val fid = featureIds.resolve(src.symbol)
-                if (fid == null) result[src] = CallResult.Missing // 本车固件没这个符号，不必上线问
+                if (fid == null) result[src] = CallResult.Missing // The firmware lacks this symbol; no need to query the helper.
                 else {
                     keys += src
                     requests += RawReq.Fid(src.dev.id, fid, src.isFloat)
@@ -119,9 +119,9 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
         val turnSignal = int(m.TURN_SIGNAL_MASK, 0, m.TURN_SIGNAL_MAX)
 
         return VehicleState(
-            // 动力
+            // Powertrain
             speed = float(m.SPEED, 0.0, 300.0),
-            // 上限用车机自己的 ENGINE_SPEED_MAX：EV 行驶时该信号是 8191(0x1FFF) 无效标记，必须挡掉
+            // Use the head unit's ENGINE_SPEED_MAX to reject the invalid 8191 (0x1FFF) marker during EV driving.
             engineRpm = int(m.ENGINE_RPM, 0, m.ENGINE_RPM_MAX),
             motorRpmFront = int(m.MOTOR_RPM_FRONT, -25_000, 25_000),
             motorRpmRear = int(m.MOTOR_RPM_REAR, -25_000, 25_000),
@@ -132,7 +132,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             workMode = int(m.WORK_MODE, 0, 15)?.let { m.WORK_MODE_LABELS[it] ?: "Mode $it" },
             driveMode = int(m.DRIVE_MODE, 0, 15)?.let { m.DRIVE_MODE_LABELS[it] ?: "Mode $it" },
 
-            // 电池
+            // Battery
             soc = float(m.SOC, 0.0, 100.0),
             batteryTempMax = float(m.BATTERY_TEMP_MAX, -40.0, 100.0, offset = tempOffset),
             batteryTempMin = float(m.BATTERY_TEMP_MIN, -40.0, 100.0, offset = tempOffset),
@@ -152,7 +152,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             tripFuelConsumption = float(m.TRIP_FUEL, 0.0, 100.0),
             voltage12V = float(m.VOLTAGE_12V, 6.0, 20.0),
 
-            // 空调
+            // Climate
             acOn = int(m.AC_ON, 0, 1)?.let { it == 1 },
             acAuto = int(m.AC_CONTROL_MODE, 0, 1)?.let { it == 0 },
             acTempDriver = float(m.AC_TEMP_DRIVER, 10.0, 40.0),
@@ -171,7 +171,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             seatVentDriver = seatLevel(m.SEAT_VENT_DRIVER),
             seatVentPassenger = seatLevel(m.SEAT_VENT_PASSENGER),
 
-            // 车身
+            // Body
             doors = Openings(
                 fl = bool(m.door(m.DOOR_FL)), fr = bool(m.door(m.DOOR_FR)),
                 rl = bool(m.door(m.DOOR_RL)), rr = bool(m.door(m.DOOR_RR)),
@@ -211,7 +211,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
                 reverseSwitchOn = bool(m.RADAR_REVERSE_SWITCH),
             ),
 
-            // 其他
+            // Other
             totalMileage = float(m.TOTAL_MILEAGE_KM, 0.0, 2_000_000.0)
                 ?: float(m.TOTAL_MILEAGE_DECI_KM, 0.0, 2_000_000.0, scale = 0.1),
             pm25 = int(m.PM25, 0, 3_000),
@@ -222,7 +222,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
         )
     }
 
-    // 依次尝试来源，第一个「非错误码且换算后在范围内」的值生效
+    // Try sources in order; use the first non-error value within range after conversion.
     private fun value(sources: List<Src>, min: Double, max: Double, scale: Double = 1.0, offset: Double = 0.0): Double? {
         for (src in sources) {
             val converted = ValueSanitizer.toDouble(rawValue(src))?.let { it * scale + offset } ?: continue
@@ -239,16 +239,16 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
 
     private fun bool(sources: List<Src>) = int(sources, 0, 1)?.let { it == 1 }
 
-    /** 座椅状态 1 关 / 2 低 / 3 高 → App 档位 0/1/2。 */
+    /** Seat states 1 off / 2 low / 3 high map to app levels 0/1/2. */
     private fun seatLevel(sources: List<Src>) =
         int(sources, 0, 3)?.let { (it - 1).coerceIn(0, BydApiMap.SEAT_MAX_LEVEL) }
 
-    /** 雷达障碍等级：0..6 为实测到的距离档，14 表示安全；原样保留，由 [Radar] 判定。 */
+    /** Radar obstacle levels 0..6 indicate distance; 14 means clear. Preserve raw values for [Radar]. */
     private fun radarLevel(sources: List<Src>) = int(sources, Radar.OBSTACLE_MIN, Radar.SAFE)
 
     private fun rawValue(src: Src): Any? {
         if (collecting) {
-            collected += src // 收集阶段一律返回 null，好让每个候选来源都被登记
+            collected += src // Return null during collection so every candidate source is registered.
             return null
         }
         val raw = (cache[src] as? CallResult.Value)?.value ?: return null
@@ -256,7 +256,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     }
 
     // ------------------------------------------------------------------
-    // 控制
+    // Control
     // ------------------------------------------------------------------
 
     override suspend fun execute(command: VehicleCommand): CommandResult {
@@ -269,7 +269,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             )
 
             is VehicleCommand.AcAuto -> {
-                val mode = if (command.on) 0 else 1 // 0 自动 / 1 手动
+                val mode = if (command.on) 0 else 1 // 0 automatic / 1 manual
                 namedThenFid(Dev.AC, m.AC_SET_CONTROL_MODE, intArrayOf(mode, m.AC_SOURCE), m.AC_CONTROL_MODE_SET_FID, null, mode)
             }
 
@@ -316,7 +316,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
         }
     }
 
-    /** 座椅：档位 n → 状态 n+1（1 关 / 2 低 / 3 高）。先试命名接口，缺失则写 FID。 */
+    /** Seat level n maps to state n+1 (1 off / 2 low / 3 high). Try the named API before FID. */
     private fun seat(zone: Zone, level: Int, method: String, fidSymbol: String): CommandResult {
         val area = if (zone == Zone.DRIVER) BydApiMap.SEAT_DRIVER else BydApiMap.SEAT_PASSENGER
         val state = level + 1

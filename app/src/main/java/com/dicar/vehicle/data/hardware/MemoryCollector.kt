@@ -8,7 +8,7 @@ import android.os.StatFs
 import android.os.storage.StorageManager
 import java.io.File
 
-/** 内存。容量、分区、虚拟机堆上限。 */
+/** Memory capacity, partitions and VM heap limit. */
 fun collectMemory(context: Context): HwSection {
     val mem = SysFs.text("/proc/meminfo")?.let { ProcParse.memInfo(it) } ?: emptyMap()
     val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
@@ -17,8 +17,7 @@ fun collectMemory(context: Context): HwSection {
     return section(HwCategory.MEMORY) {
         block {
             item("Total capacity", HwFormat.bytes(info?.totalMem ?: mem["MemTotal"]))
-            // 标称容量：内核会扣掉自己和保留区，所以 MemTotal 总是比包装盒上的小。
-            // 往上取到最近的 2 的幂，才是用户心里那个「8G 内存」
+            // Kernel MemTotal excludes kernel and reserved memory, so estimate the advertised capacity.
             item("Nominal capacity", HwFormat.nominalRam(info?.totalMem ?: mem["MemTotal"]))
             itemIfPresent("Memory type", SysFs.firstProp("ro.boot.ddr_type", "ro.boot.hardware.ddr"))
             flag("Low-memory device", am?.isLowRamDevice)
@@ -26,7 +25,7 @@ fun collectMemory(context: Context): HwSection {
         }
 
         block("Details (/proc/meminfo)") {
-            // 这几项解释了「可用」和「空闲」为什么差那么多：缓存随时可以回收
+            // These fields explain the difference between available and free memory: cache can be reclaimed.
             MEMINFO_KEYS.forEach { (key, label) ->
                 itemIfPresent(label, mem[key]?.let { HwFormat.bytes(it) })
             }
@@ -41,7 +40,7 @@ fun collectMemory(context: Context): HwSection {
                 itemIfPresent(
                     "${d.name} compression algorithm",
                     SysFs.text("${d.absolutePath}/comp_algorithm")
-                        // 当前算法用方括号标出来，其余是可选项
+                        // The active algorithm is marked in brackets; the rest are alternatives.
                         ?.let { Regex("\\[(\\w+)]").find(it)?.groupValues?.get(1) ?: it },
                 )
                 itemIfPresent("${d.name} capacity", SysFs.long("${d.absolutePath}/disksize")?.let { HwFormat.bytes(it) })
@@ -49,7 +48,7 @@ fun collectMemory(context: Context): HwSection {
         }
 
         block("App heap limits") {
-            // 这两个数决定了本 App 自己能用多少内存，OOM 的时候先看这里
+            // These values indicate the app's memory limits and are useful when investigating OOM.
             item("Standard heap limit", am?.memoryClass?.let { "$it MB" })
             item("Large heap limit", am?.largeMemoryClass?.let { "$it MB" })
             item("Process heap limit", HwFormat.bytes(Runtime.getRuntime().maxMemory()))
@@ -60,13 +59,13 @@ fun collectMemory(context: Context): HwSection {
     }
 }
 
-/** 存储。各分区容量、介质型号。 */
+/** Storage partition capacities and media model. */
 fun collectStorage(context: Context): HwSection {
     val mounts = SysFs.text("/proc/mounts")?.let { ProcParse.mounts(it) }.orEmpty()
 
     return section(HwCategory.STORAGE) {
         block("Capacity") {
-            // 这是用户在「设置 → 存储」里看到的那个数
+            // This corresponds to the value shown in Settings → Storage.
             volume("Internal storage", Environment.getDataDirectory())
             volume("System partition", Environment.getRootDirectory())
             context.getExternalFilesDir(null)?.let { volume("App external directory", it) }
@@ -92,7 +91,7 @@ fun collectStorage(context: Context): HwSection {
             }
         }
 
-        // 物理介质：UFS 走 /sys/block/sd*，eMMC 走 mmcblk*
+        // Physical media: UFS uses /sys/block/sd*, eMMC uses mmcblk*.
         val blocks = SysFs.children("/sys/block") { BLOCK_DEVICE.matches(it.name) }
         if (blocks.isNotEmpty()) {
             block("Physical storage media") {
@@ -100,7 +99,7 @@ fun collectStorage(context: Context): HwSection {
                     val base = "${dev.absolutePath}/device"
                     val model = SysFs.text("$base/model") ?: SysFs.text("$base/name")
                     val vendor = SysFs.text("$base/vendor") ?: SysFs.text("$base/manfid")
-                    // size 的单位是 512 字节扇区，不是字节——这是最容易看错的一个节点
+                    // size is measured in 512-byte sectors, not bytes.
                     val sizeBytes = SysFs.long("${dev.absolutePath}/size")?.times(512)
                     item(
                         dev.name,
@@ -115,8 +114,8 @@ fun collectStorage(context: Context): HwSection {
             }
         }
 
-        // /data_mirror、/data/user、各应用私有目录都是 /data 的 bind mount，
-    // 列出来只有噪声，真正有信息量的是 /、/vendor、/data 这些真实分区
+        // /data_mirror, /data/user and app-private directories are bind mounts of /data;
+    // list meaningful partitions such as /, /vendor and /data instead.
     val interesting = mounts.filter { m ->
         m.fsType in INTERESTING_FS && NOISY_MOUNTS.none { m.point.startsWith(it) }
     }

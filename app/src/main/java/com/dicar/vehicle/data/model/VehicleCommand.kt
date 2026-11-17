@@ -1,13 +1,13 @@
 package com.dicar.vehicle.data.model
 
 /**
- * 控制指令。
+ * Vehicle control command.
  *
- * 每条指令自带：
- * - [key]：同 key 的指令会被防抖合并（连续点 3 次「温度+」只下发最后一次）；
- * - [applyTo]：乐观更新，下发前先改 UI，避免等车机回读期间界面跳回旧值；
- * - [expected] / [readBack]：回读确认。轮询到的 readBack == expected 即视为生效；
- *   readBack 为 null（该字段读不到）时无法确认，只提示“已下发”。
+ * Each command provides:
+ * - [key]: commands with the same key are debounced (only the last of three temperature increments is sent);
+ * - [applyTo]: optimistic UI update before sending, avoiding a jump to the old value while awaiting readback;
+ * - [expected] / [readBack]: confirmation when a poll returns the expected value;
+ *   null readback cannot confirm application and is reported only as sent.
  */
 sealed interface VehicleCommand {
     val key: String
@@ -99,18 +99,18 @@ sealed interface VehicleCommand {
     }
 
     /**
-     * 车窗 / 天窗 / 遮阳帘开关。走「目标开度」写入（0 关、100 全开），
-     * 玻璃行程要几秒，等不到 3 秒的回读窗口，所以不做回读确认，只报「已下发」。
+     * Window, sunroof or shade control writes a target opening (0 closed, 100 fully open).
+     * Travel takes several seconds, beyond the three-second readback window, so only sending is reported.
      */
     data class Glass(val zone: GlassZone, val open: Boolean) : VehicleCommand {
         override val key = "glass_$zone"
         override val label = "${zone.label} ${if (open) "open" else "close"}"
         override val expected: Any? = null
         override fun readBack(state: VehicleState): Any? = null
-        override fun applyTo(state: VehicleState) = state // 真实开度由轮询反映，不做乐观更新
+        override fun applyTo(state: VehicleState) = state // Polling reports actual opening; do not update optimistically.
     }
 
-    /** 一键类功能（净化 / 速冷 / 前除霜）：没有可回读的状态，下发成功即结束。 */
+    /** Quick actions (purification, fast cooling, front defrost) have no readback; finish when sent. */
     data class Quick(val action: QuickAction) : VehicleCommand {
         override val key = "quick_$action"
         override val label = action.label
@@ -122,7 +122,7 @@ sealed interface VehicleCommand {
 
 enum class Zone(val label: String) { DRIVER("Driver"), PASSENGER("Passenger") }
 
-/** 可开合的玻璃部件。 */
+/** Openable glass component. */
 enum class GlassZone(val label: String) {
     WINDOW_FL("Front left window"), WINDOW_FR("Front right window"), WINDOW_RL("Rear left window"), WINDOW_RR("Rear right window"),
     SUNROOF("Sunroof"), SUNSHADE("Sunshade"),
@@ -134,7 +134,7 @@ enum class QuickAction(val label: String) {
     FRONT_DEFROST("Front defrost"),
 }
 
-/** 数据源执行指令的结果（只代表“下发”结果，是否真正生效由 Repository 回读确认）。 */
+/** Data source command result, indicating only dispatch; the repository confirms application through readback. */
 sealed interface CommandResult {
     data object Sent : CommandResult
     data class Unsupported(val reason: String) : CommandResult

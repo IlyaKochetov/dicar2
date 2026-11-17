@@ -5,10 +5,10 @@ import dadb.AdbShellPacket
 import dadb.AdbShellStream
 
 /**
- * 包一层 shell v2 流，提供「写一行 / 读一行」的协议接口。
+ * Wrap a shell v2 stream with a line-oriented protocol interface.
  *
- * 用 shell v2（[AdbShellStream]）而不是裸 shell：它把 stdout / stderr 分帧，
- * 辅助进程或 app_process 偶发打到 stderr 的告警不会混进协议，只取 StdOut 帧拼行。
+ * Shell v2 ([AdbShellStream]) separates stdout and stderr frames so warnings from the helper
+ * or app_process do not mix with protocol lines assembled from stdout.
  */
 class HelperSession(private val shell: AdbShellStream) {
 
@@ -24,8 +24,8 @@ class HelperSession(private val shell: AdbShellStream) {
     }
 
     /**
-     * 一次写出全部子请求、再按序收回等量应答：一轮轮询只有一次往返，
-     * 而不是每个字段一次（车机上 50+ 字段逐条问会明显发闷）。
+     * Write all requests at once and receive the same number of replies in order, using one
+     * round trip per poll instead of one per field.
      */
     fun requestBatch(lines: List<String>): List<String> {
         if (lines.isEmpty()) return emptyList()
@@ -40,7 +40,7 @@ class HelperSession(private val shell: AdbShellStream) {
         shell.write(line + "\n")
     }
 
-    /** 读一行（不含换行）；辅助进程退出返回 null。 */
+    /** Read a line without its newline; return null if the helper exits. */
     fun readLine(): String? {
         while (true) {
             pending.nextLine()?.let { return it }

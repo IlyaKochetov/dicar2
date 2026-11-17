@@ -1,28 +1,28 @@
 package com.dicar.vehicle.data.hardware
 
 /**
- * 硬件信息的统一形状：分类 → 段 → 条目。
+ * Common hardware information structure: category → block → item.
  *
- * 采集器只管往这个结构里塞东西，界面（[com.dicar.vehicle.ui.screen.HardwareScreen]）
- * 和导出（[HardwareInspector.export]）各自遍历一遍就行，不用为每类硬件写一遍渲染。
+ * Collectors populate this structure; [com.dicar.vehicle.ui.screen.HardwareScreen] and
+ * [HardwareInspector.export] traverse it without category-specific rendering.
  */
 data class HwItem(val label: String, val value: String) {
     val unknown: Boolean get() = value == UNKNOWN
 
     companion object {
-        /** 读不到时的占位。和车辆数据的 `N/A` 区分开：那是「车没给」，这是「系统不让读」。 */
+        /** Placeholder for unavailable hardware readings, distinct from vehicle data's `N/A`. */
         const val UNKNOWN = "Unknown"
     }
 }
 
-/** 卡片里的一段，[subtitle] 为 null 表示紧接着标题、不另起小标题。 */
+/** Card block; null [subtitle] omits the subheading. */
 data class HwBlock(val subtitle: String?, val items: List<HwItem>)
 
 data class HwSection(val category: HwCategory, val blocks: List<HwBlock>) {
     val itemCount: Int get() = blocks.sumOf { it.items.size }
 }
 
-/** 顶部筛选条上的分类。顺序就是卡片的默认排布顺序。 */
+/** Categories in the filter bar, ordered as cards appear by default. */
 enum class HwCategory(val label: String, val glyph: String) {
     SOC("Processor", "▤"),
     GPU("Graphics", "◈"),
@@ -42,7 +42,7 @@ enum class HwCategory(val label: String, val glyph: String) {
 }
 
 // ---------------------------------------------------------------------------
-// 采集用的小 DSL
+// Small collector DSL
 // ---------------------------------------------------------------------------
 
 @DslMarker
@@ -52,22 +52,21 @@ private annotation class HwDsl
 class BlockScope internal constructor() {
     private val items = mutableListOf<HwItem>()
 
-    /** 值为 null / 空串时记成「未知」，而不是把这一行藏起来——读不到本身也是信息。 */
+    /** Show unknown for null or blank values instead of hiding the row. */
     fun item(label: String, value: String?) {
         items += HwItem(label, value?.takeIf { it.isNotBlank() } ?: HwItem.UNKNOWN)
     }
 
-    /** 读不到就整行不出现。用于「存在才有意义」的条目，比如某个具体的 sysfs 节点。 */
+    /** Omit unavailable rows for items meaningful only when present, such as a particular sysfs node. */
     fun itemIfPresent(label: String, value: String?) {
         if (!value.isNullOrBlank()) items += HwItem(label, value)
     }
 
-    /** 能力类的布尔：这台机器支不支持某个东西。 */
+    /** Capability Boolean indicating whether the device supports something. */
     fun item(label: String, value: Boolean?) = item(label, value?.let { if (it) "Supported" else "Unsupported" })
 
     /**
-     * 状态类的布尔。和上面的「支持/不支持」分开，否则会写出
-     * 「存在电池 支持」「检测到 su 不支持」这种读不通的行。
+     * State Boolean, separate from capability flags so presence and detection labels read naturally.
      */
     fun flag(label: String, value: Boolean?, yes: String = "Yes", no: String = "No") =
         item(label, value?.let { if (it) yes else no })
@@ -89,15 +88,13 @@ class SectionScope internal constructor() {
     internal fun build(category: HwCategory) = HwSection(category, blocks.toList())
 }
 
-/** 采集器的入口：`section(HwCategory.SOC) { block("核心") { item("型号", …) } }`。 */
+/** Collector entry point: `section(HwCategory.SOC) { block("Cores") { item("Model", …) } }`. */
 fun section(category: HwCategory, body: SectionScope.() -> Unit): HwSection =
     SectionScope().apply(body).build(category)
 
 /**
- * 按关键词过滤。标签、值、小标题、分类名任一命中就留下。
- *
- * 命中小标题时整段保留——搜「温区」就该看到整段温区，而不是只剩标题那一行。
- * 空关键词原样返回；过滤后为空的分类直接丢掉，不留空卡片。
+ * Filter by label, value, subtitle or category; a subtitle match retains the whole block.
+ * An empty query returns the input, and categories with no matches are omitted.
  */
 fun filterSections(sections: List<HwSection>, query: String): List<HwSection> {
     val q = query.trim().lowercase()

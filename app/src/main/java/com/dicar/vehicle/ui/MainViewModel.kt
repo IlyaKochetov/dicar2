@@ -55,21 +55,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
     private val _probe = MutableStateFlow<ProbeUiState>(ProbeUiState.Idle)
     val probe: StateFlow<ProbeUiState> = _probe.asStateFlow()
 
-    /** 曲线图用的滚动样本（每次轮询追加一条）。 */
+    /** Rolling chart samples, appended once per poll. */
     data class HistorySample(
         val speed: Float?,
         val power: Float?,
-        /** 主转速（有发动机用发动机，否则用电机），给只画一条转速线的地方用。 */
+        /** Primary RPM (engine when available, otherwise motor) for single-series charts. */
         val rpm: Float?,
         val soc: Float?,
-        /** 发动机转速：混动车只有发动机介入时才有值。 */
+        /** Engine RPM: hybrid vehicles provide a value only when the engine is active. */
         val engineRpm: Float?,
-        /** 电机转速（前后取绝对值大的一侧）。和 [engineRpm] 分开存，
-         *  否则混动车上两条曲线会完全重合——[rpm] 本来就等于发动机转速。 */
+        /** Motor RPM (larger absolute value of front and rear), stored separately from [engineRpm]
+         *  to avoid duplicating the primary RPM line on hybrids. */
         val motorRpm: Float?,
     ) {
         companion object {
-            /** 主界面和悬浮窗各自维护一份曲线缓冲，采样逻辑只在这里写一遍。 */
+            /** Main screen and floating window maintain separate chart buffers using this shared sampling logic. */
             fun of(s: VehicleState) = HistorySample(
                 speed = s.speed,
                 power = s.batteryPower ?: s.power,
@@ -86,13 +86,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
     val history: StateFlow<List<HistorySample>> = _history.asStateFlow()
 
     init {
-        // 界面也持有一份轮询引用：即使前台服务没起来（权限被拒等），首页照样有数据
+        // The UI also holds a polling reference so the dashboard receives data if the foreground service cannot start.
         repository.acquire()
 
         viewModelScope.launch {
             var lastTimestamp = 0L
             state.collect { s ->
-                // 只按轮询节奏采样；乐观更新（点按空调等）不该在曲线上造出假点
+                // Sample only on polls; optimistic updates must not add false chart points.
                 if (s.timestamp == lastTimestamp) return@collect
                 lastTimestamp = s.timestamp
                 _history.update { (it + HistorySample.of(s)).takeLast(HISTORY_SIZE) }
@@ -106,9 +106,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         repository.release()
     }
 
-    // ---------------- 空调 / 座椅控制 ----------------
-    // 「加减/切换」类操作的目标值在 Repository 线程上基于最新状态（含乐观值）计算，
-    // 连续点击按顺序累加，再由 Repository 防抖合并成一次下发。
+    // ---------------- Climate / seat controls ----------------
+    // Calculate increment and toggle targets on the repository thread from the latest state, including optimistic values.
+    // Accumulate consecutive taps in order, then debounce them into one command.
 
     override fun toggleAc() = repository.send { s -> VehicleCommand.AcPower(s.acOn != true) }
 
@@ -132,7 +132,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         VehicleCommand.AcCycle(if (s.acCycle == AcCycleMode.INNER) AcCycleMode.OUTER else AcCycleMode.INNER)
     }
 
-    /** 座椅加热/通风：每点一次 关→1→…→最高档→关 循环，最高档由数据源决定。 */
+    /** Seat heating/ventilation cycles off → 1 → maximum → off; the source determines the maximum. */
     override fun cycleSeatHeat(zone: Zone) = repository.send { s ->
         val current = if (zone == Zone.DRIVER) s.seatHeatDriver else s.seatHeatPassenger
         VehicleCommand.SeatHeat(zone, nextSeatLevel(current, s.seatMaxLevel))
@@ -152,7 +152,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
 
     override fun glass(zone: GlassZone, open: Boolean) = repository.send(VehicleCommand.Glass(zone, open))
 
-    // ---------------- 设置 ----------------
+    // ---------------- Settings ----------------
 
     fun setRefreshInterval(ms: Long) = settings.setRefreshInterval(ms)
 
@@ -162,7 +162,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
 
     fun setTwin3dEnabled(enabled: Boolean) = settings.setTwin3dEnabled(enabled)
 
-    // ---------------- 更新检查 ----------------
+    // ---------------- Update checks ----------------
 
     private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val update: StateFlow<UpdateState> = _update.asStateFlow()
@@ -171,7 +171,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
 
     fun setAutoCheckUpdate(enabled: Boolean) {
         settings.setAutoCheckUpdate(enabled)
-        // 刚打开就先查一次，否则要等下次启动才有反馈
+        // Check immediately when enabled rather than waiting for the next launch.
         if (enabled && _update.value is UpdateState.Idle) checkUpdate()
     }
 
@@ -183,7 +183,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         }
     }
 
-    /** 启动时的自动检查。只在设置里显式打开过才会联网。 */
+    /** 启动时的自动检查。只在Settings里显式打开过才会联网。 */
     private fun checkUpdateOnStartIfEnabled() {
         if (settings.autoCheckUpdate.value) checkUpdate()
     }
@@ -195,7 +195,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
 
     fun setFloatingAlpha(value: Float) = settings.setFloatingAlpha(value)
 
-    // ---------------- 硬件信息 ----------------
+    // ---------------- Hardware information ----------------
 
     private val _hardware = MutableStateFlow<List<HwSection>>(emptyList())
     val hardware: StateFlow<List<HwSection>> = _hardware.asStateFlow()
@@ -206,14 +206,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
     private val _hardwareExport = MutableStateFlow<HardwareExportState>(HardwareExportState.Idle)
     val hardwareExport: StateFlow<HardwareExportState> = _hardwareExport.asStateFlow()
 
-    /** 「隐去标识符」开关对应的那一份原始数据，切换开关时要用它重新渲染。 */
+    /** Raw data used to rerender when the identifier-redaction setting changes. */
     private var lastExported: List<HwSection> = emptyList()
 
     /**
-     * 每秒一帧的实时指标。
+     * Live metrics at one sample per second.
      *
-     * 故意做成冷流：只有硬件页在前台订阅时才采样，离开页面立刻停。
-     * 这些读数要遍历 /sys 下几十个节点，不值得为了没人看的页面一直跑。
+     * A cold flow samples only while the hardware screen is subscribed and stops on exit.
+     * These readings traverse dozens of /sys nodes, so sampling an unseen screen is wasteful.
      */
     fun liveStats(): Flow<LiveStats> = flow {
         while (true) {
@@ -222,7 +222,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         }
     }
 
-    /** 静态信息只采一次，[force] 为 true 时重采（比如插了 U 盘之后）。 */
+    /** Collect static information once; [force] refreshes it, for example after inserting a USB drive. */
     fun loadHardware(force: Boolean = false) {
         if (_hardwareLoading.value) return
         if (!force && _hardware.value.isNotEmpty()) return
@@ -274,7 +274,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         private const val DEFAULT_TEMP = 22f
         const val MIN_FAN = 1
         const val MAX_FAN = 7
-        /** 曲线保留的样本数（1 秒一条，约 3 分钟）。 */
+        /** Number of chart samples retained (one per second, about three minutes). */
         const val HISTORY_SIZE = 180
     }
 }

@@ -35,8 +35,8 @@ import com.dicar.vehicle.util.Format
 import kotlin.math.abs
 
 /**
- * 大号主读数：数值大字细体，单位小字贴在右下角。
- * [signed] = true 时正值带 `+`（驱动功率要看得出正负）。
+ * Large, light-weight reading with a small unit at the lower right.
+ * When [signed] is true, positive values include a `+` sign.
  */
 @Composable
 fun HeroNumber(
@@ -78,8 +78,8 @@ fun HeroNumber(
 }
 
 /**
- * 驱动 / 回收双向条：0 在正中，正值（驱动）向右画、负值（回收）向左画。
- * 两边量程可以不一样——回收功率通常远小于驱动功率，各自归一化才看得出变化。
+ * Bidirectional drive/regeneration bar: zero is centered, positive values go right and negative left.
+ * Each side has its own range because regeneration power is usually much smaller.
  */
 @Composable
 fun SignedBar(
@@ -119,7 +119,7 @@ fun SignedBar(
                 cornerRadius = r,
             )
         }
-        // 0 刻度：始终可见，否则看不出条是从哪儿长出来的
+        // Keep the zero marker visible to show the bar's origin.
         drawRect(
             color = tick.copy(alpha = 0.6f),
             topLeft = Offset(centerX - size.height * 0.06f, 0f),
@@ -128,7 +128,7 @@ fun SignedBar(
     }
 }
 
-/** [SignedBar] 下面的三个刻度标签。 */
+/** Three scale labels below [SignedBar]. */
 @Composable
 fun SignedBarScale(negativeLabel: String, zeroLabel: String, positiveLabel: String) {
     Row(Modifier.fillMaxWidth()) {
@@ -147,8 +147,8 @@ fun SignedBarScale(negativeLabel: String, zeroLabel: String, positiveLabel: Stri
 }
 
 /**
- * 「标签 —— 数值 + 进度条」三件套。电量用绿、油量用橙，颜色在哪一页都一致。
- * [value] 为 null 时条是空的、数值显示 N/A，不画成 0%（0% 和读不到完全是两回事）。
+ * Label, value and progress bar. Battery is green and fuel orange throughout the app.
+ * A null [value] shows an empty bar and N/A, not 0%.
  */
 @Composable
 fun LabeledBar(
@@ -173,7 +173,7 @@ fun LabeledBar(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                // 百分号紧贴数字（「68%」而不是「68 %」），其它单位才留空格
+                // Place % directly after the number; other units use a space.
                 if (unit == "%") Format.num(value, decimals).let { if (value == null) it else "$it%" }
                 else Format.num(value, decimals, unit),
                 style = MaterialTheme.typography.headlineSmall,
@@ -194,7 +194,7 @@ fun LabeledBar(
     }
 }
 
-/** 底栏的状态胶囊：描边圆角，不填色，只有告警时才上色。 */
+/** Outlined status pill for the bottom bar, colored for alerts. */
 @Composable
 fun StatusPill(text: String, modifier: Modifier = Modifier, alert: Boolean = false) {
     val color = if (alert) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
@@ -209,7 +209,7 @@ fun StatusPill(text: String, modifier: Modifier = Modifier, alert: Boolean = fal
     )
 }
 
-/** 挡位徽标：读不到时是一个灰色的占位方块，不留空。 */
+/** Gear badge with a gray placeholder when unavailable. */
 @Composable
 fun GearBadge(gear: String?, modifier: Modifier = Modifier, size: Dp = 34.dp) {
     val known = !gear.isNullOrBlank()
@@ -231,7 +231,7 @@ fun GearBadge(gear: String?, modifier: Modifier = Modifier, size: Dp = 34.dp) {
     }
 }
 
-/** 顶栏的状态点 + 文字，比如「● 发动机运行中」。 */
+/** Top-bar status dot and text, such as engine running. */
 @Composable
 fun StatusDot(text: String, color: Color, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

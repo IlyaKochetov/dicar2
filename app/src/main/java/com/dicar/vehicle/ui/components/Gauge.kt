@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.sp
 import com.dicar.vehicle.util.Format
 
 /**
- * 圆弧仪表：缺口朝下的 240° 表盘。
+ * Arc gauge: a 240° dial with the gap at the bottom.
  *
- * [value] 为 null 时画空表盘并显示 N/A；[zeroAt] 用于功率这种有正负的量
- * （0 不在最左端，而在中间某处），负值向左画、正值向右画。
+ * A null [value] draws an empty dial and N/A. [zeroAt] supports signed values such as power:
+ * zero lies within the range, with negative values drawn left and positive values right.
  */
 @Composable
 fun ArcGauge(
@@ -63,8 +63,8 @@ fun ArcGauge(
                 .aspectRatio(1.6f),
             contentAlignment = Alignment.Center,
         ) {
-            // 字号跟表盘走：悬浮窗里一排三个小表只有几十 dp 宽，固定 26sp 会把
-            // 「-20.4」这种读数顶出表盘外面
+            // Scale text with the dial: small floating-window gauges can be only tens of dp wide,
+            // so a fixed 26sp would push readings such as -20.4 outside.
             val valueSize = (maxWidth.value * 0.17f).coerceIn(13f, 26f).sp
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = size.minDimension * 0.095f
@@ -73,14 +73,14 @@ fun ArcGauge(
                 val topLeft = Offset((size.width - side) / 2, inset)
                 val arcSize = Size(side, side)
 
-                // 底盘
+                // Track
                 drawArc(
                     color = track, startAngle = START, sweepAngle = SWEEP, useCenter = false,
                     topLeft = topLeft, size = arcSize, style = Stroke(stroke, cap = StrokeCap.Round),
                 )
                 if (value == null) return@Canvas
 
-                // 从 0 点画到当前值（功率这类量可能向左画）
+                // Draw from zero to the current value (signed values may extend left).
                 val from = minOf(zeroFraction, fraction)
                 val to = maxOf(zeroFraction, fraction)
                 val sweep = (to - from) * SWEEP
@@ -113,17 +113,17 @@ fun ArcGauge(
     }
 }
 
-/** 缺口朝下：从左下 150° 起，顺时针扫 240°。 */
+/** Gap down: sweep clockwise 240° from 150° at the lower left. */
 private const val START = 150f
 private const val SWEEP = 240f
 
 /**
- * 主仪表大表盘：270° 的 C 形环，数值占满表心，两端标出量程。
+ * Main gauge: a 270° C-shaped ring, central value and range labels.
  *
- * 和 [ArcGauge] 的分工——这个是页面主角（左栏的转速表），字大、环粗、带量程标注；
- * [ArcGauge] 是并排的小表，只有数值和标题。
+ * Unlike [ArcGauge], this prominent RPM gauge has large text, a thick ring and range labels;
+ * [ArcGauge] is a smaller gauge with just a value and title.
  *
- * [redlineFrom] 给定后超过该值表环变红（发动机红线区）。
+ * When [redlineFrom] is set, the ring turns red above that value.
  */
 @Composable
 fun DialGauge(
@@ -167,7 +167,7 @@ fun DialGauge(
                 )
             }
 
-            // 表心读数：字号跟着表盘走，小表盘上不至于顶出去
+            // Scale the central reading with the dial so it fits small gauges.
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     Format.num(value, decimals),
@@ -184,7 +184,7 @@ fun DialGauge(
             }
 
             if (showRange) {
-                // 量程标在 C 形缺口的两侧，正好是圆环末端的下方
+                // Place range labels on either side of the gap, below the ring ends.
                 Text(
                     Format.num(min),
                     style = MaterialTheme.typography.labelMedium,
@@ -202,6 +202,6 @@ fun DialGauge(
     }
 }
 
-/** 主表盘：从左下 135° 起，顺时针扫 270°，底部留 90° 缺口放量程标注。 */
+/** Main dial: sweep clockwise 270° from 135°, leaving a 90° bottom gap for range labels. */
 private const val DIAL_START = 135f
 private const val DIAL_SWEEP = 270f

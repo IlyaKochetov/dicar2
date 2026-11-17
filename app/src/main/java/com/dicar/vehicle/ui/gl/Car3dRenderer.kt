@@ -13,15 +13,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * 车辆 3D 视图的渲染器。OpenGL ES 2.0，整台车一千多个三角形、十来个 draw call，
- * 刻意做得很轻——这个页面是给车机那块弱 GPU 跑的。
+ * 3D vehicle renderer using OpenGL ES 2.0. The car uses about a thousand triangles
+ * and a dozen draw calls to keep the workload light for the head-unit GPU.
  *
- * 渲染线程和界面线程之间只靠下面这些 `@Volatile` 字段通信：界面随时写目标值，
- * 渲染线程每帧读一次并做平滑插值，不加锁。
+ * The UI and render threads communicate through the `@Volatile` fields below.
+ * The UI writes targets; the renderer reads them each frame and interpolates without locks.
  */
 class Car3dRenderer : GLSurfaceView.Renderer {
 
-    // ---------------- 外部写入的目标状态 ----------------
+    // ---------------- Externally supplied target state ----------------
 
     @Volatile var doorTargets: FloatArray = FloatArray(4)
     @Volatile var windowTargets: FloatArray = FloatArray(4)
@@ -30,12 +30,12 @@ class Car3dRenderer : GLSurfaceView.Renderer {
     @Volatile var turnRight: Boolean = false
     @Volatile var brake: Float = 0f
 
-    /** 相机：绕车转的方位角、俯仰角、距离。由手势直接改。 */
+    /** Camera azimuth, elevation and distance around the car, changed directly by gestures. */
     @Volatile var yawDeg: Float = 38f
     @Volatile var pitchDeg: Float = 16f
     @Volatile var distance: Float = 8.4f
 
-    // ---------------- 配色（跟随 Compose 主题） ----------------
+    // ---------------- Colors (follow Compose theme) ----------------
 
     @Volatile var background = floatArrayOf(0.07f, 0.09f, 0.11f, 1f)
     @Volatile var bodyColor = floatArrayOf(0.85f, 0.87f, 0.90f, 1f)
@@ -45,7 +45,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
     @Volatile var accentColor = floatArrayOf(0.04f, 0.52f, 1f, 1f)
     @Volatile var shadowAlpha = 0.22f
 
-    // ---------------- 内部 ----------------
+    // ---------------- Internal state ----------------
 
     private val parts = CarMesh.build()
     private var program = 0
@@ -77,7 +77,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
     private val tmp = FloatArray(16)
     private val eye = FloatArray(3)
 
-    // 平滑后的当前值。开关门、升降窗都不该是瞬移
+    // Smoothed values prevent doors and windows from moving instantaneously.
     private val door = FloatArray(4)
     private val window = FloatArray(4)
     private var wheelAngle = 0f
@@ -100,7 +100,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
         uLightDir = GLES20.glGetUniformLocation(program, "uLightDir")
         uEye = GLES20.glGetUniformLocation(program, "uEye")
 
-        // GL 上下文可能被销毁重建（切后台再回来），这里每次都重新上传
+        // Re-upload whenever the GL context is recreated, such as after returning from the background.
         gpuBody = upload(parts.body)
         gpuGlass = upload(parts.glass)
         gpuInterior = upload(parts.interior)
@@ -133,7 +133,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
         GLES20.glUniform3f(uLightDir, LIGHT[0], LIGHT[1], LIGHT[2])
         GLES20.glUniform3f(uEye, eye[0], eye[1], eye[2])
 
-        // 地面投影先画，关掉深度写入，免得挡住车底
+        // Draw the ground shadow first with depth writes disabled so it does not obscure the underside.
         gpuShadow?.let {
             GLES20.glDepthMask(false)
             Matrix.setIdentityM(model, 0)
@@ -158,7 +158,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
             door[i] += ((targets.getOrElse(i) { 0f }) - door[i]) * (dt * DOOR_SPEED).coerceIn(0f, 1f)
             window[i] += ((windows.getOrElse(i) { 0f }) - window[i]) * (dt * WINDOW_SPEED).coerceIn(0f, 1f)
         }
-        // 车轮按真实周长滚：v(m/s) / r(m) = 角速度(rad/s)
+        // Rotate wheels by their actual circumference: v (m/s) / r (m) = angular velocity (rad/s).
         val v = speedKmh / 3.6f
         wheelAngle += v / 0.33f * dt
         if (wheelAngle > TWO_PI) wheelAngle -= TWO_PI
@@ -181,14 +181,14 @@ class Car3dRenderer : GLSurfaceView.Renderer {
             val open = door[i]
             Matrix.setIdentityM(model, 0)
             if (open > 0.001f) {
-                // 绕车门前缘的竖轴转出去；左侧为负角、右侧为正角
+                // Rotate outward about the door's leading vertical axis; left is negative, right positive.
                 Matrix.translateM(model, 0, part.hingeX, 0f, part.hingeZ)
                 Matrix.rotateM(model, 0, MAX_DOOR_ANGLE * open * part.side, 0f, 1f, 0f)
                 Matrix.translateM(model, 0, -part.hingeX, 0f, -part.hingeZ)
             }
             gpuDoorPanels.getOrNull(i)?.let { draw(it, bodyColor, gloss = 0.45f) }
 
-            // 车窗降下：玻璃绕腰线做 Y 向压缩，看起来就是落进门里
+            // Lower the window by scaling the glass vertically around the beltline.
             val shut = 1f - window[i]
             if (shut > 0.02f) {
                 System.arraycopy(model, 0, tmp, 0, 16)
@@ -219,7 +219,7 @@ class Car3dRenderer : GLSurfaceView.Renderer {
 
     private fun drawLights() {
         if (gpuLights.size < 4) return
-        // 转向灯 1.5Hz 闪；没在转向时前灯用暖白、尾灯用红，踩刹车尾灯变亮
+        // Flash indicators at 1.5 Hz; otherwise use warm white headlights and red tail lights, brighter under braking.
         val blinkOn = (SystemClock.elapsedRealtime() / 380L) % 2L == 0L
         val leftSignal = turnLeft && blinkOn
         val rightSignal = turnRight && blinkOn
@@ -316,8 +316,8 @@ class Car3dRenderer : GLSurfaceView.Renderer {
             }
         """
 
-        // 一盏方向光 + 环境光 + 轮廓光。轮廓光是必需的：深色主题下深色车身贴着
-        // 深色背景，没有这圈边就看不出车的外形。
+        // Directional, ambient and rim lighting. The rim light keeps the dark body visible
+        // against the dark theme background.
         private const val FRAGMENT_SHADER = """
             precision mediump float;
             uniform vec4 uColor;

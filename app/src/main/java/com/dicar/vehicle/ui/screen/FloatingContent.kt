@@ -33,8 +33,8 @@ import com.dicar.vehicle.ui.components.MetricRow
 import com.dicar.vehicle.util.Format
 
 /**
- * 悬浮窗内容。显示哪些块、透明度多少都来自设置，所以这里只负责按配置渲染。
- * 顶部那条是拖动把手，拖它移动窗口，点「✕」关闭，点标题回主界面。
+ * Floating window content, rendered according to the configured sections and opacity.
+ * Drag the top handle to move the window, tap ✕ to close, or tap the title to return to the main screen.
  */
 @Composable
 fun FloatingContent(

@@ -5,13 +5,13 @@ import android.content.ContextWrapper
 import android.content.pm.PackageManager
 
 /**
- * 需求 2.6「签名权限问题 → 反射 + 自定义 Context」。
+ * Requirement 2.6: signature permissions via reflection and a custom Context.
  *
- * BYDAuto 设备类在 getInstance(Context) / get / set 时，用传入的 Context 在【本进程内】做
- * android.permission.BYDAUTO_* 权限检查（_GET/_SET 是签名级，第三方 App 拿不到）。
- * 把这些检查直接放行即可正常调用 —— 来源：wheregoes/byd-apps BydPermissionContext.java，
- * DiLink 3（Dolphin / Song Pro GS）实测有效。DiLink 4.0 未经验证；若服务端（autoservice）
- * 自己再校验一次，这里无能为力，会表现为 SecurityException，请改用迪加数据源。
+ * BYDAuto device classes check android.permission.BYDAUTO_* locally using the supplied Context;
+ * _GET/_SET are signature permissions unavailable to third-party apps. Allowing local checks
+ * was reported to work on DiLink 3 (Dolphin / Song Pro GS), per wheregoes/byd-apps BydPermissionContext.java.
+ * DiLink 4.0 is unverified. Server-side autoservice checks can still throw SecurityException;
+ * use the DiPlus source in that case.
  */
 class BydPermissionContext(base: Context) : ContextWrapper(base) {
 

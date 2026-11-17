@@ -59,7 +59,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** 首页的几种视图。默认孪生图。 */
+/** Dashboard views. The twin view is the default. */
 enum class MainTab(val label: String, val glyph: String) {
     TWIN("Twin", "⬢"),
     CARDS("Cards", "▦"),
@@ -108,7 +108,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
         ) {
             val wide = maxWidth > 700.dp
             Row(Modifier.fillMaxSize()) {
-                // 车机横屏放得下侧边导航；竖屏/小屏退回顶部分段控件
+                // Use side navigation on landscape head units and top segments on smaller or portrait screens.
                 if (wide) {
                     SideRail(
                         tab = tab,
@@ -166,7 +166,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 
 @Composable
 private fun CardsPane(state: VehicleState, pending: Set<String>, viewModel: MainViewModel) {
-    // 卡片自适应排布：车机横屏 1920 宽约 3 列，竖屏/手机 1 列
+    // Adaptive cards: about three columns at 1920 landscape width, one on portrait or phones.
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Adaptive(minSize = 400.dp),
         contentPadding = PaddingValues(12.dp),
@@ -184,7 +184,7 @@ private fun CardsPane(state: VehicleState, pending: Set<String>, viewModel: Main
     }
 }
 
-/** 左侧导航栏：车机横屏下的主导航，按钮大、好按。 */
+/** Left navigation for landscape head units, with large touch targets. */
 @Composable
 private fun SideRail(
     tab: MainTab,
@@ -204,8 +204,7 @@ private fun SideRail(
             )
         },
     ) {
-        // 选中态统一用强调蓝，不用 Material 默认的 secondaryContainer（那是绿色，
-        // 这套配色里绿色专门表示电量，不能拿来当「选中」）
+        // Use accent blue for selection; Material's green secondaryContainer is reserved for battery level.
         val railColors = NavigationRailItemDefaults.colors(
             selectedIconColor = MaterialTheme.colorScheme.primary,
             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -240,8 +239,8 @@ private fun SideRail(
 }
 
 /**
- * 顶栏：左边是车辆当前状态（挡位、动力、模式），右边是数据源、车外温度和时间。
- * [compact] 为 true 时说明左侧已有导航栏，这里就不再重复放导航和按钮。
+ * Top bar: vehicle state on the left; data source, outside temperature and time on the right.
+ * When [compact] is true, navigation already appears on the left and is not repeated here.
  */
 @Composable
 private fun StatusStrip(
@@ -268,7 +267,7 @@ private fun StatusStrip(
                         selected = tab == item,
                         onClick = { onTab(item) },
                         shape = SegmentedButtonDefaults.itemShape(index, MainTab.entries.size),
-                        // 同样把默认的绿色选中态换成强调蓝，绿色留给电量
+                        // Use accent blue for selection and reserve green for battery level.
                         colors = SegmentedButtonDefaults.colors(
                             activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
                             activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -310,7 +309,7 @@ private fun StatusStrip(
     }
 }
 
-/** 顶栏的动力状态：有发动机数据就说发动机，没有就退回电机，都没有才 N/A。 */
+/** Top-bar power state: prefer engine data, fall back to motor data, otherwise show N/A. */
 @Composable
 private fun powertrainStatus(state: VehicleState): Pair<String, androidx.compose.ui.graphics.Color> {
     val scheme = MaterialTheme.colorScheme
@@ -324,14 +323,14 @@ private fun powertrainStatus(state: VehicleState): Pair<String, androidx.compose
     }
 }
 
-/** 「HEV · 经济」这种模式串；两个都读不到就显示 N/A。 */
+/** Mode string such as HEV · Eco; show N/A if neither value is available. */
 private fun modeSummary(state: VehicleState): String =
     listOfNotNull(state.workMode, state.driveMode)
         .filter { it.isNotBlank() }
         .joinToString(" · ")
         .ifEmpty { Format.NA }
 
-/** 墙上时钟，每 20 秒刷一次（只显示到分钟，不需要更勤）。 */
+/** Clock refreshed every 20 seconds; minute precision needs no faster refresh. */
 @Composable
 private fun rememberClock(): String {
     var text by remember { mutableStateOf(nowHhMm()) }

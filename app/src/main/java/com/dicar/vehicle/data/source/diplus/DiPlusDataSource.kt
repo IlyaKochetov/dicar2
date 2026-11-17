@@ -21,13 +21,13 @@ import java.net.URLEncoder
 import kotlin.math.roundToInt
 
 /**
- * 备用/验证数据源：迪加（DiPlus）本机 HTTP 接口 127.0.0.1:8988。
+ * Fallback/verification source: DiPlus local HTTP interface at 127.0.0.1:8988.
  *
- * 读：GET /api/getDiPars?text=别名:{中文参数名}|别名:{中文参数名}...
- *     返回 {"success":true,"val":"别名:值|别名:值"}（来源：BYDMate v2.8.1 DiParsClient.kt，已实车使用）
- * 写：GET /api/sendCmd?cmd=迪加<指令>。注意：无论指令是否有效都返回 success，必须靠回读确认。
+ * Read: GET /api/getDiPars?text=别名:{中文参数名}|别名:{中文参数名}...
+ *     Returns {"success":true,"val":"别名:值|别名:值"} (source: BYDMate v2.8.1 DiParsClient.kt, used on a vehicle).
+ * Write: GET /api/sendCmd?cmd=迪加<指令>. Success is returned even for invalid commands; readback is required.
  *
- * 参数名与编码来自 BYDMate 及其迪加研究文档（D+ 1.3.8）；标 [?] 的为推测，请用迪加 App 核对。
+ * Parameter names and encodings come from BYDMate and its DiPlus research (D+ 1.3.8); verify [?] estimates in DiPlus.
  */
 class DiPlusDataSource(
     private val baseUrl: String = "http://127.0.0.1:8988",
@@ -107,8 +107,8 @@ class DiPlusDataSource(
             totalMileage = f("Mileage", 0.0, 20_000_000.0, scale = 0.1),
             slope = f("Slope", -60.0, 60.0),
 
-            acTempStep = 1f, // 「设置温度N」只收整数
-            seatMaxLevel = 2, // 迪加座椅指令只有 1、2 档
+            acTempStep = 1f, // The temperature command accepts integers only.
+            seatMaxLevel = 2, // DiPlus seat commands support levels 1 and 2 only.
         )
     }
 
@@ -131,7 +131,7 @@ class DiPlusDataSource(
             is VehicleCommand.AcCycle -> if (command.mode == AcCycleMode.INNER) "内循环" else "外循环"
             is VehicleCommand.SeatHeat -> seatCommand(command.seat, "加热", command.level) ?: return unsupported("3 档（迪加只有 1-2 档）")
             is VehicleCommand.SeatVent -> seatCommand(command.seat, "通风", command.level) ?: return unsupported("3 档（迪加只有 1-2 档）")
-            // 迪加的玻璃指令是「主驾打开100」「天窗打开30」这种中文宏
+            // DiPlus glass commands use Chinese macros such as 「主驾打开100」 and 「天窗打开30」.
             is VehicleCommand.Glass -> when (command.zone) {
                 GlassZone.WINDOW_FL -> "主驾${glassSuffix(command.open)}"
                 GlassZone.WINDOW_FR -> "副驾${glassSuffix(command.open)}"
@@ -164,12 +164,12 @@ class DiPlusDataSource(
         }
     }
 
-    /** 迪加的开合宏：「打开100」=全开、「打开0」=关。 */
+    /** DiPlus opening macros: 「打开100」 = fully open, 「打开0」 = closed. */
     private fun glassSuffix(open: Boolean) = if (open) "打开100" else "打开0"
 
     private fun unsupported(what: String) = CommandResult.Unsupported("DiPlus does not support $what")
 
-    /** 调 getDiPars 并解析出 别名 → 值字符串。连接失败抛 IOException，交给 Repository 降级。 */
+    /** Call getDiPars and parse aliases to value strings; throw IOException on connection failure for repository fallback. */
     private fun query(template: String): Map<String, String> {
         val body = httpGet("$baseUrl/api/getDiPars?text=" + URLEncoder.encode(template, "UTF-8"))
         val json = JSONObject(body)
@@ -195,13 +195,13 @@ class DiPlusDataSource(
         private const val CONNECT_TIMEOUT_MS = 500
         private const val READ_TIMEOUT_MS = 1_500
 
-        /** 别名 → 迪加中文参数名。别名只用字母数字，不能含 : 或 |。 */
+        /** Alias → Chinese DiPlus parameter name. Aliases are alphanumeric and cannot contain : or |. */
         val PARAMS: List<Pair<String, String>> = listOf(
             "Speed" to "车速",
             "EngRpm" to "发动机转速",
             "MotRpmF" to "前电机转速",
             "MotRpmR" to "后电机转速",
-            "Power" to "发动机功率",          // 实为整车功率，负值=回收（BYDMate 当作驱动功率使用）
+            "Power" to "发动机功率",          // Actually total vehicle power; negative means regeneration (BYDMate treats it as drive power).
             "Accel" to "加速踏板深度",
             "Brake" to "刹车深度",
             "Gear" to "档位",
@@ -216,11 +216,11 @@ class DiPlusDataSource(
             "ChargeGun" to "充电枪插枪状态",
             "ChgState" to "充电状态",
             "Fuel" to "油量百分比",
-            "ElecPhm" to "百公里电耗",        // [?] 口径未知，暂作行程电耗显示
+            "ElecPhm" to "百公里电耗",        // [?] Basis unknown; displayed as trip consumption for now.
             "V12" to "蓄电池电压",
             "AcOn" to "空调状态",
             "AcTempD" to "主驾驶空调温度",
-            "AcTempP" to "副驾驶空调温度",     // [?] 未在文档中出现
+            "AcTempP" to "副驾驶空调温度",     // [?] Not present in documentation
             "Fan" to "风量档位",
             "AcMode" to "空调出风模式",
             "AcCirc" to "空调循环方式",
@@ -244,7 +244,7 @@ class DiPlusDataSource(
             "TpRR" to "右后轮气压",
             "Steer" to "方向盘转角",
             "BeltFL" to "主驾驶安全带状态",
-            "BeltFR" to "副驾安全带",          // [?] 编码按主驾推测
+            "BeltFR" to "副驾安全带",          // [?] Encoding inferred from driver seat
             "TurnL" to "左转向灯",
             "TurnR" to "右转向灯",
             "Mileage" to "里程",               // ÷10 = km
@@ -257,9 +257,9 @@ class DiPlusDataSource(
         val WORK_MODE_LABELS = mapOf(0 to "Stopped", 1 to "EV", 2 to "Forced EV", 3 to "HEV")
         val DRIVE_MODE_LABELS = mapOf(1 to "Eco", 2 to "Sport")
         val CHARGE_GUN_LABELS = mapOf(1 to "Unplugged", 2 to "AC connector", 3 to "DC connector", 4 to "Adapter", 5 to "V2L connector")
-        val CHARGE_STATE_LABELS = mapOf(1 to "Ready", 2 to "Charging", 3 to "Charge complete", 4 to "Charging stopped") // [?] 顺序推测
+        val CHARGE_STATE_LABELS = mapOf(1 to "Ready", 2 to "Charging", 3 to "Charge complete", 4 to "Charging stopped") // [?] Order inferred
 
-        /** 空调出风模式 1-7，按迪加指令表顺序推测 [?] */
+        /** 空调出风模式 1-7，按迪加指令表Order inferred [?] */
         val WIND_MODE_CODES = mapOf(
             1 to AcWindMode.FACE,
             2 to AcWindMode.FACE_FEET,
@@ -268,7 +268,7 @@ class DiPlusDataSource(
             5 to AcWindMode.DEFROST,
         )
 
-        /** "SOC:82|Speed:0|Gear:1" → {SOC=82, Speed=0, Gear=1}。纯函数，便于单测。 */
+        /** "SOC:82|Speed:0|Gear:1" → {SOC=82, Speed=0, Gear=1}。Pure function for unit testing. */
         fun parseVal(raw: String): Map<String, String> =
             raw.split('|').mapNotNull { pair ->
                 val idx = pair.indexOf(':')

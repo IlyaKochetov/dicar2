@@ -19,7 +19,6 @@ val keystoreProps = rootProject.file("keystore.properties").takeIf { it.exists()
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -32,8 +31,9 @@ android {
         minSdk = 28
         // 需求文档要求 targetSdk 33：避免车机上因新版本行为限制导致安装/前台服务问题
         targetSdk = 33
-        versionCode = 6
-        versionName = "0.4.2"
+        versionCode = 7
+        // Previously 0.4.2.
+        versionName = "1.0"
     }
 
     signingConfigs {

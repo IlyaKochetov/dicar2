@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.sp
 import com.dicar.vehicle.data.model.VehicleState
 import com.dicar.vehicle.util.Format
 
-/** 电池与能量卡片：F09-F17。 */
+/** Battery and energy card: F09-F17. */
 @Composable
 fun BatteryCard(state: VehicleState, modifier: Modifier = Modifier) {
     DataCard(title = "Battery & energy", modifier = modifier) {

@@ -13,7 +13,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-/** 系统。版本、构建、运行时、车机标识。 */
+/** System version, build, runtime and head-unit identification. */
 fun collectSystem(context: Context): HwSection {
     val pm = context.packageManager
 
@@ -42,8 +42,7 @@ fun collectSystem(context: Context): HwSection {
         }
 
         block("Kernel and runtime") {
-            // /proc/version 在新安卓上对应用是禁读的，但 os.version 这个 JVM 属性
-            // 里就是内核版本号，拿它兜底
+            // Newer Android versions restrict /proc/version; fall back to the JVM os.version property.
             val version = SysFs.text("/proc/version")
             item("Kernel version", version?.let { ProcParse.kernelVersion(it) } ?: System.getProperty("os.version"))
             itemIfPresent("Full kernel string", version?.replace('\n', ' '))
@@ -55,7 +54,7 @@ fun collectSystem(context: Context): HwSection {
         }
 
         block("Security and integrity") {
-            // 三条合起来判断「这台机子有没有被动过」，任何一条异常都值得注意
+            // Together these three values help identify modifications; any anomaly merits attention.
             item("SELinux", selinux())
             flag("Debuggable build", SysFs.prop("ro.debuggable") == "1")
             flag("Release signed", Build.TAGS?.contains("release-keys"))
@@ -88,8 +87,8 @@ fun collectSystem(context: Context): HwSection {
         }
 
         block("Software environment") {
-            // 安卓 11 起有「包可见性」限制：没有 QUERY_ALL_PACKAGES 时只能看到一部分。
-            // 不去申请那个权限（它在商店上架要专门说明理由），而是如实标注数字不全
+            // Android 11 package visibility restricts the count without QUERY_ALL_PACKAGES.
+            // Indicate that the count is incomplete rather than requesting that permission.
             val partial = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) " (visible to this app only)" else ""
             item("Installed apps", runCatching {
                 "${pm.getInstalledPackages(0).size} apps$partial"
@@ -104,7 +103,7 @@ fun collectSystem(context: Context): HwSection {
             item("Shared libraries", runCatching { pm.systemSharedLibraryNames?.size }.getOrNull()?.let { "$it libraries" })
         }
 
-        // 车机专有：这台设备到底是不是比亚迪车机、哪一代 DiLink
+        // Head-unit identification: whether it is BYD and which DiLink generation.
         val bydProps = SysFs.allProps().filterKeys { it.contains("byd", ignoreCase = true) }
         block("Head unit") {
             flag(
@@ -121,7 +120,7 @@ fun collectSystem(context: Context): HwSection {
     }
 }
 
-/** 系统特性。`PackageManager` 声明的全部 feature，决定了哪些 API 真的能用。 */
+/** System features declared by `PackageManager`. */
 fun collectFeatures(context: Context): HwSection {
     val features = runCatching {
         context.packageManager.systemAvailableFeatures.toList()
@@ -132,7 +131,7 @@ fun collectFeatures(context: Context): HwSection {
     return section(HwCategory.FEATURE) {
         block {
             item("Count", "${features.size} items")
-            // 没有名字的那几条是 OpenGL ES 版本号，单独算出来更有意义
+            // Unnamed entries represent OpenGL ES versions; calculate those separately.
             if (unnamed > 0) item("Unnamed features", "$unnamed items (OpenGL ES versions)")
         }
         block("All features") {
@@ -145,10 +144,10 @@ fun collectFeatures(context: Context): HwSection {
 }
 
 /**
- * 系统属性全量。
+ * All system properties.
  *
- * `getprop` 在一台车机上能有一千多条，是排查「这台机子和别人家哪不一样」最直接的材料。
- * 界面上默认折叠，完整内容走导出。
+ * `getprop` can return thousands of properties useful for comparing devices.
+ * The UI collapses them by default; export includes the full list.
  */
 fun collectProps(): HwSection {
     val props = SysFs.allProps()
@@ -157,7 +156,7 @@ fun collectProps(): HwSection {
             item("Count", if (props.isEmpty()) "Read failed (getprop unavailable)" else "${props.size} entries")
         }
         if (props.isEmpty()) return@section
-        // 按前缀归档，否则一千条平铺根本找不到东西
+        // Group by prefix to make large property lists navigable.
         PROP_GROUPS.forEach { (prefix, label) ->
             val group = props.filterKeys { it.startsWith(prefix) }.toSortedMap()
             if (group.isNotEmpty()) {
@@ -195,24 +194,24 @@ private val PROP_GROUPS = listOf(
     "debug." to "Debug",
 )
 
-/** 拼几个 JVM 系统属性，缺的跳过（不同 ART 版本给的属性不一样）。 */
+/** Combine available JVM properties, skipping those absent on a given ART version. */
 private fun sysProps(vararg keys: String): String? =
     keys.mapNotNull { System.getProperty(it) }.joinToString(" ").takeIf { it.isNotBlank() }
 
-@Suppress("DEPRECATION") // 低版本上 Build.SERIAL 仍是唯一能免权限读到序列号的途径
+@Suppress("DEPRECATION") // On older Android versions Build.SERIAL can provide the serial without permission.
 private fun serial(): String? = when {
-    // 从安卓 10 起 Build.SERIAL 对普通应用一律返回 UNKNOWN，getSerial() 要 READ_PHONE_STATE。
-    // 不为了一行信息去申请那个权限，如实说明读不到的原因
+    // Android 10 restricts Build.SERIAL and getSerial() requires READ_PHONE_STATE.
+    // Explain unavailability rather than requesting permission for one field.
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "Restricted by Android"
     else -> Build.SERIAL.takeIf { it != Build.UNKNOWN }
 }
 
 private fun selinux(): String {
-    // sysfs 节点在新安卓上读不到，但 getenforce 这个系统自带命令还能跑
+    // Newer Android may restrict the sysfs node; the system getenforce command can be used.
     val raw = SysFs.text("/sys/fs/selinux/enforce")
         ?: SysFs.exec("getenforce")?.trim()
         ?: SysFs.prop("ro.boot.selinux")
-    // 只认已知取值。不认识的一律当读不到，免得把命令的报错文字当成状态显示出去
+    // Accept only known values so command errors are not displayed as status.
     return when (raw?.lowercase()) {
         "1", "enforcing" -> "Enforcing"
         "0", "permissive" -> "Permissive"

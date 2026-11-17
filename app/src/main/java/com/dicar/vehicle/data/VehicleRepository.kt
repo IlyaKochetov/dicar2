@@ -26,12 +26,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * 统一数据入口：
- * 1. 按设置选择数据源（自动模式下 BYDAuto 优先，失败降级迪加）；
- * 2. 定时轮询，产出 [state]；
- * 3. 控制指令：乐观更新 → 防抖下发 → 轮询回读确认 → 失败通过 [events] 提示。
- *
- * 所有内部状态只在 [dispatcher]（单线程）上访问，因此不需要加锁。
+ * Shared data entry point: select a source (BYDAuto then DiPlus in auto mode), poll [state],
+ * and process controls with optimistic updates, debouncing and readback confirmation.
+ * Failures are reported through [events]. Internal state is confined to [dispatcher].
  */
 class VehicleRepository(
     private val settings: SettingsStore,
@@ -45,16 +42,16 @@ class VehicleRepository(
     private val _state = MutableStateFlow(VehicleState())
     val state: StateFlow<VehicleState> = _state.asStateFlow()
 
-    /** 正在等待下发/回读的指令 key，UI 用来显示“同步中”。 */
+    /** Command keys awaiting dispatch or readback, used by the UI to show synchronization. */
     private val _pendingKeys = MutableStateFlow<Set<String>>(emptySet())
     val pendingKeys: StateFlow<Set<String>> = _pendingKeys.asStateFlow()
 
-    /** 一次性提示（控制失败、暂不支持等），UI 用 Snackbar 展示。 */
+    /** One-time messages such as control failures, shown in a Snackbar. */
     private val _events = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val events: SharedFlow<String> = _events.asSharedFlow()
 
     // ------------------------------------------------------------------
-    // 轮询生命周期：前台服务和界面各持有一份引用，全部释放后才停止采集
+    // Polling lifecycle: the foreground service and UI hold references; polling stops when all release.
     // ------------------------------------------------------------------
 
     private var clients = 0
@@ -106,7 +103,7 @@ class VehicleRepository(
     }
 
     // ------------------------------------------------------------------
-    // 数据源选择
+    // Source selection
     // ------------------------------------------------------------------
 
     private var active: VehicleDataSource? = null
@@ -136,7 +133,7 @@ class VehicleRepository(
             }
         }
         Log.i(TAG, "mode=$mode -> source=${active?.type}")
-        if (active?.type != previous?.type) sticky.clear() // 换数据源后旧的「最后下发值」不再可信
+        if (active?.type != previous?.type) sticky.clear() // Previously sent values are not reliable after a source change.
         return active
     }
 
@@ -147,15 +144,15 @@ class VehicleRepository(
         SourceMode.MOCK -> listOf(DataSourceType.MOCK)
     }.mapNotNull { sources[it] }
 
-    /** 当前数据源读失败：下一轮立即重新探测（自动模式下可能切到备用数据源）。 */
+    /** On source read failure, re-probe on the next poll (auto mode may select the fallback). */
     private fun invalidateSource() {
         active = null
         lastProbeAt = 0L
     }
 
     // ------------------------------------------------------------------
-    // 闪烁信号的保持：转向灯本身就在闪，1 秒采样会随机采到「灭」的半周期，
-    // 界面就会乱跳。亮过之后保持一小段时间，看起来才像真的在打灯。
+    // Latch flashing indicators briefly after an on sample; one-second polling may otherwise
+    // capture the off half-cycle and make the UI flicker.
     // ------------------------------------------------------------------
 
     private class SignalLatch(private val holdMs: Long) {
@@ -188,7 +185,7 @@ class VehicleRepository(
     }
 
     // ------------------------------------------------------------------
-    // 控制：乐观更新 + 防抖 + 回读确认
+    // Controls: optimistic updates, debouncing and readback confirmation
     // ------------------------------------------------------------------
 
     private class Pending(val command: VehicleCommand) {
@@ -203,16 +200,16 @@ class VehicleRepository(
     fun send(command: VehicleCommand) = send { command }
 
     /**
-     * 基于「当前状态（含尚未确认的乐观值）」生成指令再下发。
-     * [build] 在仓库线程上按点击顺序执行：即使该线程正阻塞在一次 HTTP 读取中，
-     * 连点「温度+」也会依次看到上一次的乐观值，不会丢步。返回 null 表示无需下发。
+     * Build a command from current state including unconfirmed optimistic values.
+     * [build] runs on the repository thread in tap order, so repeated increments accumulate
+     * even when an HTTP read blocks the thread. Return null when no command is needed.
      */
     fun send(build: (VehicleState) -> VehicleCommand?) {
         scope.launch { build(_state.value)?.let(::enqueue) }
     }
 
     private fun enqueue(command: VehicleCommand) {
-        // 不清 sticky：挂起期间 pending 叠加在 sticky 之后会覆盖它；若新指令失败，仍回退到上一次成功下发的值
+        // Keep sticky values: pending overrides them, and a failed new command falls back to the last sent value.
         pending[command.key] = Pending(command)
         _state.update { command.applyTo(it) }
         publishPendingKeys()
@@ -239,7 +236,7 @@ class VehicleRepository(
         }
         Log.i(TAG, "execute $command -> $result")
 
-        // 下发期间被同 key 的新指令替换了：结果交给新指令处理
+        // A newer command with the same key replaced this one; let it handle the result.
         val entry = pending[command.key]?.takeIf { it.command == command } ?: return
 
         when (result) {
@@ -258,13 +255,13 @@ class VehicleRepository(
         }
     }
 
-    /** 用轮询结果确认/淘汰挂起指令；未确认的指令继续把乐观值叠加在真实状态上。 */
+    /** Confirm or expire pending commands using the poll; unconfirmed commands retain optimistic values. */
     private fun reconcilePending(raw: VehicleState): VehicleState {
         if (pending.isEmpty() && sticky.isEmpty()) return raw
         var merged = raw
 
-        // 无法回读的字段（如迪加读不到座椅档位）：一直显示最后下发的值，直到数据源开始上报该字段。
-        // 否则「点按循环档位」这类基于当前值的操作每次都会从 N/A 重新开始。
+        // For fields without readback, retain the last sent value until the source reports it.
+        // Otherwise operations such as cycling seat levels would restart from N/A each time.
         sticky.values.removeAll { it.readBack(raw) != null }
         sticky.values.forEach { merged = it.applyTo(merged) }
 
@@ -274,7 +271,7 @@ class VehicleRepository(
             val entry = iterator.next()
             val command = entry.command
             if (!entry.sent) {
-                merged = command.applyTo(merged) // 仍在防抖窗口内
+                merged = command.applyTo(merged) // Still inside the debounce window
                 continue
             }
             val actual = command.readBack(raw)

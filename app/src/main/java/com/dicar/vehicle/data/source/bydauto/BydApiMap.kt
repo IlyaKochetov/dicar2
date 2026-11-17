@@ -3,23 +3,23 @@ package com.dicar.vehicle.data.source.bydauto
 import com.dicar.vehicle.data.model.AcWindMode
 
 /**
- * BYDAuto 接口映射表 —— 实车探测后主要改这一个文件（需求 2.6「可配置参数映射表」）。
+ * BYDAuto interface mapping; update this file after probing a vehicle (requirement 2.6).
  *
- * 每个字段按顺序尝试多个来源，第一个返回有效值的生效：
- * - [Src.Getter]：设备类上的命名方法，如 BYDAutoSpeedDevice.getCurrentSpeed()；
- * - [Src.Fid]：通过 BYDAutoDeviceManager.getInt/getDouble(dev, fid) 直读。fid 用 BYDAutoFeatureIds
- *   里的字段名在车机上反射解析，因为同一功能在不同平台的 fid 数值不同（如 SPEED_AUTO_SPEED）。
+ * Each field tries sources in order and uses the first valid value:
+ * - [Src.Getter]: named device method, such as BYDAutoSpeedDevice.getCurrentSpeed();
+ * - [Src.Fid]: read through BYDAutoDeviceManager.getInt/getDouble(dev, fid). Resolve the field name
+ *   from BYDAutoFeatureIds at runtime because FID values vary across platforms.
  *
- * 来源标记（务必保留，方便判断可信度）：
- *   [D4]  DiLink 4.0（Android 10）探测报告中确认存在的方法 / 常量 / FID 符号。
- *         注意：报告里所有读数都被系统拒绝（permission deny），所以「存在」已确认，「读数含义」仍待验证
- *   [D3]  wheregoes/byd-apps 在 DiLink 3（海豚 / 宋 Pro）实车验证
- *   [D5]  AndyShaman/BYDMate 在 DiLink 5（豹 3）实车验证的 FID 编码
- *   [?]   推测
+ * Source markers (retain these to assess confidence):
+ *   [D4]  Methods, constants and FID symbols confirmed present in a DiLink 4.0 (Android 10) probe.
+ *         All readings were permission denied: existence is confirmed, but meanings remain unverified.
+ *   [D3]  wheregoes/byd-apps vehicle verification on DiLink 3 (Dolphin / Song Pro)
+ *   [D5]  FID encoding verified by AndyShaman/BYDMate on DiLink 5 (Bao 3)
+ *   [?]   Inferred
  */
 object BydApiMap {
 
-    /** autoservice 设备类型 id 与对应 Java 类。 */
+    /** autoservice device type IDs and corresponding Java classes. */
     enum class Dev(val id: Int, val className: String) {
         AC(1000, "android.hardware.bydauto.ac.BYDAutoAcDevice"),
         BODYWORK(1001, "android.hardware.bydauto.bodywork.BYDAutoBodyworkDevice"),
@@ -44,7 +44,7 @@ object BydApiMap {
     }
 
     sealed interface Src {
-        /** [index]：方法返回数组时取第几个元素（如 PM2.5）。 */
+        /** [index]: element to select when a method returns an array, such as PM2.5. */
         data class Getter(val dev: Dev, val method: String, val args: List<Int> = emptyList(), val index: Int? = null) : Src
         data class Fid(val dev: Dev, val symbol: String, val isFloat: Boolean = false) : Src
     }
@@ -54,10 +54,10 @@ object BydApiMap {
 
     const val FEATURE_IDS_CLASS = "android.hardware.bydauto.BYDAutoFeatureIds"
 
-    /** FID 通道：DiLink 4.0 上 AbsBYDAutoDevice 没有 get(dev, fid)，只能走 manager [D4]。 */
+    /** FID channel: on DiLink 4.0 AbsBYDAutoDevice lacks get(dev, fid), so use the manager [D4]. */
     const val DEVICE_MANAGER_CLASS = "android.hardware.bydauto.BYDAutoDeviceManager"
 
-    /** 探测工具的已知类列表（dex 扫描失败时兜底）。 */
+    /** Known probe classes used when dex scanning fails. */
     val KNOWN_DEVICE_CLASSES: List<String> =
         Dev.entries.map { it.className } + listOf(
             FEATURE_IDS_CLASS,
@@ -67,20 +67,20 @@ object BydApiMap {
         )
 
     // =====================================================================
-    // 读：动力与行驶
+    // Read: powertrain and driving
     // =====================================================================
 
     val SPEED = listOf(getter(Dev.SPEED, "getCurrentSpeed") /*[D4] double km/h*/, fid(Dev.SPEED, "Speed.SPEED_AUTO_SPEED", true) /*[D4]*/)
     /**
-     * 发动机转速。车机常量 ENGINE_SPEED_MIN=0 / MAX=8000 [D4]；
-     * 超出上限的 8191(0x1FFF) 是 CAN 的「无效」标记（EV 行驶 / 发动机未启动时就是它），必须挡掉。
+     * Engine RPM. Head-unit constants ENGINE_SPEED_MIN=0 / MAX=8000 [D4];
+     * reject 8191 (0x1FFF), the CAN invalid marker used when the engine is not running.
      */
     val ENGINE_RPM = listOf(getter(Dev.ENGINE, "getEngineSpeed") /*[D4]*/)
     const val ENGINE_RPM_MAX = 8000
     val MOTOR_RPM_FRONT = listOf(fid(Dev.ENGINE, "Engine.ENGINE_FRONT_MOTOR_SPEED") /*[D4]*/)
     val MOTOR_RPM_REAR = listOf(fid(Dev.ENGINE, "Engine.ENGINE_REAR_MOTOR_SPEED") /*[D4]*/)
 
-    /** 整车驱动功率 kW，负值=回收/充电（BYDMate 实测 ENGINE_POWER 为整车功率）。 */
+    /** Total vehicle drive power in kW, negative for regeneration/charging (ENGINE_POWER per BYDMate). */
     val POWER = listOf(fid(Dev.ENGINE, "Engine.ENGINE_POWER") /*[D4][D5]*/, getter(Dev.ENGINE, "getEnginePower") /*[D4]*/)
     val ACCELERATOR = listOf(getter(Dev.SPEED, "getAccelerateDeepness") /*[D4] 0-100*/, fid(Dev.SPEED, "Speed.SPEED_ACCELERATOR_S") /*[D4]*/)
     val BRAKE = listOf(getter(Dev.SPEED, "getBrakeDeepness") /*[D4] 0-100*/, fid(Dev.SPEED, "Speed.SPEED_BRAKE_S") /*[D4]*/)
@@ -98,21 +98,21 @@ object BydApiMap {
     val DRIVE_MODE_LABELS = mapOf(1 to "Eco", 2 to "Sport", 3 to "Normal", 4 to "Snow", 5 to "Mud", 6 to "Sand")
 
     // =====================================================================
-    // 读：电池与能量
+    // Read: battery and energy
     // =====================================================================
 
     val SOC = listOf(getter(Dev.STATISTIC, "getElecPercentageValue") /*[D4] double %*/, fid(Dev.STATISTIC, "Statistic.STATISTIC_ELEC_PERCENTAGE", true) /*[D4]*/)
 
-    /** 原始值 - 40 = ℃ [D4 符号][D5 编码]；本固件无命名 getter */
+    /** Raw value - 40 = °C [D4 symbol][D5 encoding]; this firmware has no named getter */
     val BATTERY_TEMP_MAX = listOf(fid(Dev.STATISTIC, "Statistic.STATISTIC_HIGHEST_BATTERY_TEMP"))
     val BATTERY_TEMP_MIN = listOf(fid(Dev.STATISTIC, "Statistic.STATISTIC_LOWEST_BATTERY_TEMP"))
     const val BATTERY_TEMP_OFFSET = -40
 
-    /** 单体电压，单位 mV [D4 符号][D5 编码] */
+    /** Cell voltage in mV [D4 symbol][D5 encoding] */
     val CELL_VOLTAGE_MAX = listOf(fid(Dev.STATISTIC, "Statistic.STATISTIC_HIGHEST_BATTERY_VOLTAGE"))
     val CELL_VOLTAGE_MIN = listOf(fid(Dev.STATISTIC, "Statistic.STATISTIC_LOWEST_BATTERY_VOLTAGE"))
 
-    /** 动力电池总电压 V / 电流 A（负=充电）[D4 符号][D5 编码] */
+    /** Traction battery voltage V / current A (negative = charging) [D4 symbol][D5 encoding] */
     val BATTERY_VOLTAGE = listOf(fid(Dev.CHARGING, "Charging.CHARGING_CHARGE_BATTERY_VOLT"))
     val BATTERY_CURRENT = listOf(fid(Dev.CHARGING, "Charging.CHARGING_CHARGE_CURRENT", true))
 
@@ -125,26 +125,26 @@ object BydApiMap {
     val CHARGE_STATE_LABELS = mapOf(
         0 to "Not charging", 1 to "Charging", 2 to "Charge complete", 3 to "Discharging", 4 to "Charging stopped",
         9 to "Scheduled charging", 11 to "Charging timed out", 12 to "Discharging complete", 13 to "Charging paused",
-        15 to "Not charging", // 停放状态下实测返回 15（常量表无定义，视作无充电活动）[D4]
+        15 to "Not charging", // Observed value 15 while parked (undefined in constants; treated as no charging activity) [D4]
     )
 
     val RANGE_ELEC = listOf(getter(Dev.STATISTIC, "getElecDrivingRangeValue") /*[D4] km*/)
     val RANGE_FUEL = listOf(getter(Dev.STATISTIC, "getFuelDrivingRangeValue") /*[D4] km*/)
     val FUEL_PERCENT = listOf(getter(Dev.STATISTIC, "getFuelPercentageValue") /*[D4]*/)
 
-    /** 瞬时能耗 [D4]（单位按仪表推测：kWh/100km、L/100km）[?] */
+    /** 瞬时能耗 [D4]（单位按仪表Inferred：kWh/100km、L/100km）[?] */
     val INSTANT_ELEC = listOf(getter(Dev.STATISTIC, "getInstantElecConValue"))
     val INSTANT_FUEL = listOf(getter(Dev.STATISTIC, "getInstantFuelConValue"))
 
-    /** 近程百公里能耗 [D4]（Last…PHM，推测为仪表「近 50km」口径）[?] */
+    /** 近程百公里能耗 [D4]（Last…PHM，Inferred为仪表「近 50km」口径）[?] */
     val TRIP_ELEC = listOf(getter(Dev.STATISTIC, "getLastElecConPHMValue"))
     val TRIP_FUEL = listOf(getter(Dev.STATISTIC, "getLastFuelConPHMValue"))
 
-    /** 12V 蓄电池电压。注意 dev 是 1001 而符号在 Ota 名下 [D4 符号][D5] */
+    /** 12V battery voltage. Device is 1001 although the symbol is under Ota [D4 symbol][D5] */
     val VOLTAGE_12V = listOf(fid(Dev.BODYWORK, "Ota.OTA_BATTERY_POWER_VOLTAGE", true))
 
     // =====================================================================
-    // 读：空调与座椅
+    // Read: climate and seats
     // =====================================================================
 
     /** AC_POWER_ON=1 / OFF=0 [D4] */
@@ -153,7 +153,7 @@ object BydApiMap {
     /** AC_CTRLMODE_AUTO=0 / MANUAL=1 [D4] */
     val AC_CONTROL_MODE = listOf(getter(Dev.AC, "getAcControlMode"), fid(Dev.AC, "Ac.AC_CTRL_MODE"))
 
-    /** getTemprature(区域)（拼写错误是原接口如此）：AC_TEMPERATURE_MAIN=1 DEPUTY=2 OUT=4；直接是 ℃ [D4] */
+    /** getTemprature(zone) (original API spelling): AC_TEMPERATURE_MAIN=1 DEPUTY=2 OUT=4; directly in °C [D4] */
     const val AC_ZONE_DRIVER = 1
     const val AC_ZONE_PASSENGER = 2
     const val AC_ZONE_OUTSIDE = 4
@@ -161,13 +161,13 @@ object BydApiMap {
     val AC_TEMP_PASSENGER = listOf(getter(Dev.AC, "getTemprature", AC_ZONE_PASSENGER), fid(Dev.AC, "Ac.AC_TEMP_DEPUTY"))
     val OUTSIDE_TEMP = listOf(getter(Dev.AC, "getTemprature", AC_ZONE_OUTSIDE), fid(Dev.AC, "Ac.AC_TEMP_OUT"))
 
-    /** 本固件没有 AC_TEMP_INSIDE，也没有车内温度 getter；保留 FID 以兼容其他固件 */
+    /** This firmware lacks AC_TEMP_INSIDE and an interior temperature getter; retain FID for other firmware. */
     val INSIDE_TEMP = listOf(fid(Dev.AC, "Ac.AC_TEMP_INSIDE") /*[D5]*/)
 
     /** AC_WINDLEVEL_0..7 [D4] */
     val AC_FAN_LEVEL = listOf(getter(Dev.AC, "getAcWindLevel"), fid(Dev.AC, "Ac.AC_WIND_LEVEL"))
 
-    /** AC_CYCLEMODE_INLOOP=1（内循环）/ OUTLOOP=0（外循环）[D4]。旧资料（DiLink 3）写的是反的 */
+    /** AC_CYCLEMODE_INLOOP=1 (recirculation) / OUTLOOP=0 (outside air) [D4]; older DiLink 3 sources reverse these. */
     val AC_CYCLE = listOf(getter(Dev.AC, "getAcCycleMode"), fid(Dev.AC, "Ac.AC_CYCLE_MODE"))
     const val AC_CYCLE_INNER = 1
     const val AC_CYCLE_OUTER = 0
@@ -197,7 +197,7 @@ object BydApiMap {
     val SEAT_VENT_PASSENGER = listOf(getter(Dev.SETTING, "getSeatVentilatingState", SEAT_PASSENGER), fid(Dev.SETTING, "Setting.SET_PASSENGER_SEAT_VENTILATING_STATE"))
 
     // =====================================================================
-    // 读：车身与安全
+    // Read: body and safety
     // =====================================================================
 
     /** getDoorState(区域)：0 关 / 1 开 / 255 未定义；BODYWORK_CMD_DOOR_LEFT_FRONT=1 … HOOD=5 LUGGAGE_DOOR=6 [D4] */
@@ -223,7 +223,7 @@ object BydApiMap {
     val TIRE_PRESSURE_RL = listOf(getter(Dev.TYRE, "getTyrePressureValue", 3), fid(Dev.TYRE, "Tyre.TYRE_PRESSURE_VALUE_LEFT_REAR"))
     val TIRE_PRESSURE_RR = listOf(getter(Dev.TYRE, "getTyrePressureValue", 4), fid(Dev.TYRE, "Tyre.TYRE_PRESSURE_VALUE_RIGHT_REAR"))
 
-    /** 胎温 ℃（仅部分车型有）[D4 符号] */
+    /** Tire temperature in °C (available on some models) [D4 symbol] */
     val TIRE_TEMP_FL = listOf(fid(Dev.INSTRUMENT, "Instrument.INSTRUMENT_2IN1_LF_TYRE_TEMPERATURE"))
     val TIRE_TEMP_FR = listOf(fid(Dev.INSTRUMENT, "Instrument.INSTRUMENT_2IN1_RF_TYRE_TEMPERATURE"))
     val TIRE_TEMP_RL = listOf(fid(Dev.INSTRUMENT, "Instrument.INSTRUMENT_2IN1_LB_TYRE_TEMPERATURE"))
@@ -292,21 +292,21 @@ object BydApiMap {
     const val GLASS_CLOSE_PERCENT = 0
 
     // =====================================================================
-    // 读：其他
+    // Read: other
     // =====================================================================
 
-    /** 命名接口直接是 km [D4]；FID 是 0.1 km [D5] */
+    /** Named API returns km [D4]; FID uses 0.1 km [D5] */
     val TOTAL_MILEAGE_KM = listOf(getter(Dev.STATISTIC, "getTotalMileageValue"))
     val TOTAL_MILEAGE_DECI_KM = listOf(fid(Dev.STATISTIC, "Statistic.STATISTIC_TOTAL_MILEAGE"))
 
-    /** getPM2p5Value() 返回 int[]，0-3000 μg/m³；取第 0 个（推测为车内）[D4][?] */
+    /** getPM2p5Value() 返回 int[]，0-3000 μg/m³；取第 0 个（Inferred为车内）[D4][?] */
     val PM25 = listOf(Src.Getter(Dev.PM2P5, "getPM2p5Value", index = 0))
 
-    /** 本固件 SensorDevice 只有 getLightIntensity，没有坡度 */
+    /** This firmware's SensorDevice has getLightIntensity but no slope getter. */
     val SLOPE: List<Src> = emptyList()
 
     // =====================================================================
-    // 写：控制。优先命名接口，接口不存在时写 FID（FID 写入值来自 BYDMate 豹 3 实测）
+    // Write: controls. Prefer named APIs, falling back to FID (write values from BYDMate Bao 3 testing).
     // =====================================================================
 
     /** start(来源) / stop(来源)；AC_CTRL_SOURCE_UI_KEY=0 [D3][D4] */

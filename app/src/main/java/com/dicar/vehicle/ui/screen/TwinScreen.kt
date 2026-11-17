@@ -36,11 +36,10 @@ import com.dicar.vehicle.ui.components.StatusPill
 import com.dicar.vehicle.util.Format
 
 /**
- * 孪生主页。横屏三栏：左转速大表盘、中车速 + 俯视车况图、右功率与电量油量；
- * 底部一条趋势曲线 + 状态胶囊。竖屏改为上下堆叠，内容不删减。
+ * Twin dashboard: RPM on the left, speed and vehicle view in the center, power and levels on the right.
+ * A trend chart and status pills sit below. Portrait stacks the same content vertically.
  *
- * 中间一栏刻意不套卡片——车速和车辆图是这一页的主角，直接落在背景上，
- * 两侧的白卡片把视线收拢到中间。
+ * The central speed and vehicle view sit directly on the background, framed by the side cards.
  */
 @Composable
 fun TwinPane(
@@ -71,8 +70,8 @@ fun TwinPane(
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 窄屏给车辆图一个固定高度：按宽高比算的话，600dp 宽的屏上车会撑到
-                // 700dp 高，一屏只剩一台车
+                // Use a fixed height on narrow screens: aspect-ratio sizing would make the car
+                // about 700dp tall on a 600dp-wide screen.
                 SpeedAndCar(state, use3d, Modifier.fillMaxWidth().height(380.dp))
                 RpmCard(state, Modifier.fillMaxWidth().height(260.dp))
                 PowerCardPane(state, Modifier.fillMaxWidth())
@@ -82,7 +81,7 @@ fun TwinPane(
     }
 }
 
-/** 左栏：转速大表盘。发动机没介入时自动改显电机转速，量程和红线一起换。 */
+/** Left column: RPM gauge; switches to motor RPM, range and redline when the engine is inactive. */
 @Composable
 private fun RpmCard(state: VehicleState, modifier: Modifier = Modifier) {
     val isEngine = state.engineRpm != null
@@ -103,7 +102,7 @@ private fun RpmCard(state: VehicleState, modifier: Modifier = Modifier) {
     }
 }
 
-/** 中栏：大号车速 + 车况图，不套卡片。[use3d] 决定用 3D 车模还是 2D 俯视图。 */
+/** Center column: speed and vehicle view. [use3d] selects the 3D model or 2D top view. */
 @Composable
 private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -114,7 +113,7 @@ private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier 
     }
 }
 
-/** 右栏：驱动/回收功率 + 电量油量 + 续航。 */
+/** Right column: drive/regeneration power, battery, fuel and range. */
 @Composable
 private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
@@ -144,23 +143,23 @@ private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
     }
 }
 
-/** 综合续航 = 纯电 + 燃油。任一侧读不到就不硬凑，返回 null 显示 N/A。 */
+/** Combined range is electric plus fuel; unavailable inputs produce null and N/A. */
 private fun combinedRange(state: VehicleState): Int? {
     val e = state.remainRangeElec
     val f = state.remainRangeFuel
     return when {
         e != null && f != null -> e + f
-        e != null && state.fuelPercent == null -> e   // 纯电车没有油箱，综合就等于纯电
+        e != null && state.fuelPercent == null -> e   // An EV has no fuel tank, so combined range equals electric range.
         else -> null
     }
 }
 
-/** 底栏：图例竖排在左、曲线占中间、状态胶囊靠右。 */
+/** Bottom bar: vertical legend left, chart center, status pills right. */
 @Composable
 private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistorySample>) {
     val scheme = MaterialTheme.colorScheme
-    // 发动机和电机各画各的，有哪个画哪个。不要再画一条「主转速」——
-    // 有发动机时主转速就等于发动机转速，两条线会完全重合，等于白画一条。
+    // Plot available engine and motor RPM separately. A separate primary RPM line
+    // would duplicate engine RPM when the engine is present.
     val series = buildList {
         add(ChartSeries("Power", "kW", scheme.secondary, history.map { it.power }, baseline = 0f))
         if (history.any { it.engineRpm != null }) {
@@ -169,7 +168,7 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
         if (history.any { it.motorRpm != null }) {
             add(ChartSeries("Motor", "rpm", scheme.primary, history.map { it.motorRpm }, baseline = 0f))
         }
-        // 两个转速都读不到时，退回主转速，至少别让图里只剩一条功率线
+        // Fall back to primary RPM if neither separate RPM is available.
         if (size == 1 && history.any { it.rpm != null }) {
             add(ChartSeries("RPM", "rpm", scheme.primary, history.map { it.rpm }, baseline = 0f))
         }
@@ -183,8 +182,7 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
             ChartLegend(series, vertical = true)
             ChartCanvas(series, Modifier.weight(1f).fillMaxHeight())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                // 雷达只在真的在工作时出现（倒车档或探头有读数）。常驻一个「雷达 N/A」
-                // 既占地方又没信息，而泊车时它恰好是最该看的一条。
+                // Show radar only when active (reverse gear or probe readings), avoiding a persistent unhelpful N/A.
                 radarSummary(state)?.let { (text, alert) -> StatusPill(text, alert = alert) }
                 StatusPill(acSummary(state))
                 val tyre = tyreSummary(state)
@@ -197,8 +195,8 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
 }
 
 /**
- * 泊车雷达摘要。雷达没在工作就返回 null（不显示这枚胶囊）。
- * 返回 文案 to 是否告警；障碍进到 [RADAR_ALERT_LEVEL] 档以内算告警。
+ * Parking radar summary, or null when inactive.
+ * Returns text to alert status; levels within [RADAR_ALERT_LEVEL] trigger an alert.
  */
 private fun radarSummary(state: VehicleState): Pair<String, Boolean>? {
     val radar = state.radar
@@ -217,7 +215,7 @@ private fun acSummary(state: VehicleState): String = when (state.acOn) {
     }
 }
 
-/** 返回 文案 to 是否告警。四轮都读不到就显示 N/A，不假装正常。 */
+/** Returns text to alert status; show N/A when all four wheels are unavailable. */
 private fun tyreSummary(state: VehicleState): Pair<String, Boolean> {
     val values = state.tirePressure.toList().filterNotNull()
     if (values.isEmpty()) return "Tyres ${Format.NA}" to false
@@ -240,5 +238,5 @@ private const val MAX_REGEN_KW = 100f
 private const val TYRE_MIN_KPA = 190f
 private const val TYRE_MAX_KPA = 300f
 
-/** 最近障碍到这一档以内，胶囊变红。0 最近、6 最远。 */
+/** The pill turns red at or below this obstacle level. Zero is closest, six farthest. */
 private const val RADAR_ALERT_LEVEL = 2
