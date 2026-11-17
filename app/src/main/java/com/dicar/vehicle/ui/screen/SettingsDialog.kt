@@ -73,14 +73,14 @@ fun SettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } },
-        title = { Text("设置") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        title = { Text("Settings") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("数据源", style = MaterialTheme.typography.titleSmall)
+                Text("Data source", style = MaterialTheme.typography.titleSmall)
                 SourceMode.entries.forEach { mode ->
                     Row(
                         Modifier
@@ -95,7 +95,7 @@ fun SettingsDialog(
                 }
 
                 HorizontalDivider()
-                Text("刷新间隔：${sliderValue.roundToLong()} ms", style = MaterialTheme.typography.titleSmall)
+                Text("Refresh interval: ${sliderValue.roundToLong()} ms", style = MaterialTheme.typography.titleSmall)
                 Slider(
                     value = sliderValue,
                     onValueChange = { sliderValue = (it / 100f).roundToLong() * 100f },
@@ -105,7 +105,7 @@ fun SettingsDialog(
                 )
 
                 HorizontalDivider()
-                Text("孪生图", style = MaterialTheme.typography.titleSmall)
+                Text("Digital twin", style = MaterialTheme.typography.titleSmall)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -113,10 +113,10 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("3D 车辆模型")
+                        Text("3D vehicle model")
                         Text(
-                            "可拖动旋转、双指缩放。会持续占用 GPU，车机上和导航同时开可能卡顿；" +
-                                "关闭则使用 2D 俯视图（默认）。",
+                            "Drag to rotate and pinch to zoom. Continuous GPU usage may slow navigation;" +
+                                "when disabled, the default 2D top-down view is used.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -126,9 +126,9 @@ fun SettingsDialog(
                 }
 
                 HorizontalDivider()
-                Text("悬浮窗", style = MaterialTheme.typography.titleSmall)
+                Text("Floating overlay", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "勾选要显示的内容；透明度越低越不挡视线。改动立即生效。",
+                    "Choose overlay content. Lower opacity blocks less of the view; changes apply immediately.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -145,7 +145,7 @@ fun SettingsDialog(
                     }
                 }
                 var alpha by remember(floatingAlpha) { mutableFloatStateOf(floatingAlpha) }
-                Text("不透明度：${(alpha * 100).roundToLong()}%", style = MaterialTheme.typography.bodyMedium)
+                Text("Opacity: ${(alpha * 100).roundToLong()}%", style = MaterialTheme.typography.bodyMedium)
                 Slider(
                     value = alpha,
                     onValueChange = { alpha = it },
@@ -154,8 +154,8 @@ fun SettingsDialog(
                 )
 
                 HorizontalDivider()
-                Text("关于", style = MaterialTheme.typography.titleSmall)
-                MetricRow("当前版本", BuildConfig.VERSION_NAME)
+                Text("About", style = MaterialTheme.typography.titleSmall)
+                MetricRow("Current version", BuildConfig.VERSION_NAME)
                 UpdateSection(
                     state = update,
                     autoCheck = autoCheckUpdate,
@@ -177,13 +177,13 @@ fun SettingsDialog(
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         )
                     }
-                }) { Text("开源地址：$PROJECT_URL") }
+                }) { Text("Source code: $PROJECT_URL") }
 
                 HorizontalDivider()
-                Text("开发工具", style = MaterialTheme.typography.titleSmall)
+                Text("Developer tools", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "枚举车机上所有 BYDAuto*Device 的方法与常量，并调用无参 getter 记录当前值，" +
-                        "结果保存为文本文件，可 adb pull 后对照填充 BydApiMap。",
+                    "List BYDAuto*Device methods and constants and read no-argument getters;" +
+                        "save the report for use with adb pull and BydApiMap.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -192,7 +192,7 @@ fun SettingsDialog(
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("探测 BYDAuto 接口")
+                    Text("Probe BYDAuto interfaces")
                 }
             }
         },
@@ -204,12 +204,12 @@ fun ProbeResultDialog(probe: ProbeUiState, onDismiss: () -> Unit) {
     if (probe !is ProbeUiState.Done) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
-        title = { Text("BYDAuto 接口探测结果") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("BYDAuto probe results") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    probe.filePath?.let { "已保存：$it" } ?: "保存文件失败，仅显示在下方",
+                    probe.filePath?.let { "Saved: $it" } ?: "Unable to save file; showing output below",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 SelectionContainer {
@@ -247,11 +247,11 @@ private fun UpdateSection(
                 CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
             }
-            Text("检查更新")
+            Text("Check for updates")
         }
         when (state) {
             is UpdateState.UpToDate -> Text(
-                "已是最新版本",
+                "Up to date",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -274,7 +274,7 @@ private fun UpdateSection(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                "发现新版本 ${release.version}" + (release.publishedOn?.let { "（$it）" } ?: ""),
+                "New version ${release.version}" + (release.publishedOn?.let { " ($it)" } ?: ""),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -288,7 +288,7 @@ private fun UpdateSection(
             // 走了降级通道时要说明白为什么只有版本号，否则会被当成「这版没写说明」
             if (release.viaFallback) {
                 Text(
-                    "GitHub 接口这会儿用不了，只从发布页取到了版本号；更新说明和下载请打开发布页查看。",
+                    "The GitHub API is unavailable. Only the version number could be retrieved; open the release page for notes and downloads.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -296,9 +296,9 @@ private fun UpdateSection(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 不在 App 内直接下载安装：那需要 REQUEST_INSTALL_PACKAGES 权限，
                 // 对一个自用工具来说不值当。跳到发布页用车机浏览器下载即可。
-                TextButton(onClick = { onOpen(release.pageUrl) }) { Text("查看发布页") }
+                TextButton(onClick = { onOpen(release.pageUrl) }) { Text("View release") }
                 release.apkUrl?.let { url ->
-                    TextButton(onClick = { onOpen(url) }) { Text("下载 APK") }
+                    TextButton(onClick = { onOpen(url) }) { Text("Download APK") }
                 }
             }
         }
@@ -311,10 +311,10 @@ private fun UpdateSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("启动时自动检查")
+            Text("Check on startup")
             Text(
-                "检查会访问 GitHub，这是本 App 唯一一处外部网络请求；只发一次匿名请求，" +
-                    "不上传任何车辆数据。关闭时仅在你手动点击时联网。",
+                "The update check is the app's only external network request. It sends one anonymous request" +
+                    "without any vehicle data. When disabled, it connects only when checked manually.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -326,4 +326,4 @@ private fun UpdateSection(
 
 private const val UPDATE_NOTE_LINES = 6
 
-const val PROJECT_URL = "https://github.com/tsix2019/dicar2"
+const val PROJECT_URL = "https://github.com/IlyaKochetov/dicar2"
