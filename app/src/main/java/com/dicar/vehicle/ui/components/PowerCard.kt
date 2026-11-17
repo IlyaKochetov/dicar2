@@ -21,28 +21,28 @@ import com.dicar.vehicle.util.Format
 /** 动力与行驶卡片：F01-F08 + F37 能量流。 */
 @Composable
 fun PowerCard(state: VehicleState, modifier: Modifier = Modifier) {
-    DataCard(title = "动力行驶", modifier = modifier, trailing = { GearBadge(state.gear) }) {
+    DataCard(title = "Driving & powertrain", modifier = modifier, trailing = { GearBadge(state.gear) }) {
         Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            BigMetric(Format.num(state.speed), "km/h", "车速")
-            BigMetric(Format.num(state.power, 1), "kW", "总功率")
+            BigMetric(Format.num(state.speed), "km/h", "Speed")
+            BigMetric(Format.num(state.power, 1), "kW", "Total power")
         }
         MetricPair(
-            "发动机转速", Format.num(state.engineRpm, unit = "rpm"),
-            "发动机功率", Format.num(state.enginePower, 1, "kW"),
+            "Engine RPM", Format.num(state.engineRpm, unit = "rpm"),
+            "Engine power", Format.num(state.enginePower, 1, "kW"),
         )
         MetricPair(
-            "前电机转速", Format.num(state.motorRpmFront, unit = "rpm"),
-            "后电机转速", Format.num(state.motorRpmRear, unit = "rpm"),
+            "Front motor RPM", Format.num(state.motorRpmFront, unit = "rpm"),
+            "Rear motor RPM", Format.num(state.motorRpmRear, unit = "rpm"),
         )
-        MetricRow("电机功率", Format.num(state.motorPower, 1, "kW"))
-        PercentBar("油门开度", state.accelerator, MaterialTheme.colorScheme.secondary)
-        PercentBar("刹车深度", state.brake, MaterialTheme.colorScheme.error)
+        MetricRow("Motor power", Format.num(state.motorPower, 1, "kW"))
+        PercentBar("Accelerator position", state.accelerator, MaterialTheme.colorScheme.secondary)
+        PercentBar("Brake position", state.brake, MaterialTheme.colorScheme.error)
         HorizontalDivider()
         MetricPair(
-            "工作模式", Format.text(state.workMode),
-            "驾驶模式", Format.text(state.driveMode),
+            "Powertrain mode", Format.text(state.workMode),
+            "Drive mode", Format.text(state.driveMode),
         )
-        MetricRow("能量流", state.energyFlow ?: Format.NA)
+        MetricRow("Energy flow", state.energyFlow ?: Format.NA)
     }
 }
 
