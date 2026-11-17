@@ -91,11 +91,11 @@ object BydApiMap {
 
     /** ENERGY_MODE_STOP=0 EV=1 FORCE_EV=2 HEV=3 FUEL=4 KEEP=5 [D4] */
     val WORK_MODE = listOf(getter(Dev.ENERGY, "getEnergyMode"), fid(Dev.ENERGY, "Energy.ENERGY_MODE_INSTRUMENT"))
-    val WORK_MODE_LABELS = mapOf(0 to "停止", 1 to "EV", 2 to "强制EV", 3 to "HEV", 4 to "燃油", 5 to "保电")
+    val WORK_MODE_LABELS = mapOf(0 to "Stopped", 1 to "EV", 2 to "Forced EV", 3 to "HEV", 4 to "ICE", 5 to "Battery hold")
 
     /** ENERGY_OPERATION_ECONOMY=1 SPORT=2 NORMAL=3 SNOW=4 MUDDY=5 SAND=6 [D4] */
     val DRIVE_MODE = listOf(getter(Dev.ENERGY, "getOperationMode"), fid(Dev.ENERGY, "Energy.ENERGY_OPERATION_MODE"))
-    val DRIVE_MODE_LABELS = mapOf(1 to "经济", 2 to "运动", 3 to "普通", 4 to "雪地", 5 to "泥地", 6 to "沙地")
+    val DRIVE_MODE_LABELS = mapOf(1 to "Eco", 2 to "Sport", 3 to "Normal", 4 to "Snow", 5 to "Mud", 6 to "Sand")
 
     // =====================================================================
     // 读：电池与能量
@@ -118,14 +118,14 @@ object BydApiMap {
 
     /** CHARGING_GUN_STATE_CONNECTED_NONE=1 AC=2 DC=3 AC_DC=4 VTOL=5 [D4] */
     val CHARGE_GUN = listOf(fid(Dev.CHARGING, "Charging.CHARGING_GUN_CONNECT_STATE"))
-    val CHARGE_GUN_LABELS = mapOf(1 to "未插枪", 2 to "交流枪", 3 to "直流枪", 4 to "交直流", 5 to "对外放电")
+    val CHARGE_GUN_LABELS = mapOf(1 to "Unplugged", 2 to "AC connector", 3 to "DC connector", 4 to "AC/DC", 5 to "Vehicle-to-load")
 
     /** CHARGING_BATTERY_STATE_READY=0 CHARGING=1 FINISH=2 DISCHARG=3 TERMINATE=4 … PAUSE=13 [D4] */
     val CHARGE_STATE = listOf(fid(Dev.CHARGING, "Charging.CHARGING_BATTERRY_DEVICE_STATE"), getter(Dev.CHARGING, "getBatteryManagementDeviceState"))
     val CHARGE_STATE_LABELS = mapOf(
-        0 to "未充电", 1 to "充电中", 2 to "充电完成", 3 to "放电中", 4 to "充电终止",
-        9 to "预约充电", 11 to "充电超时", 12 to "放电完成", 13 to "充电暂停",
-        15 to "未充电", // 停放状态下实测返回 15（常量表无定义，视作无充电活动）[D4]
+        0 to "Not charging", 1 to "Charging", 2 to "Charge complete", 3 to "Discharging", 4 to "Charging stopped",
+        9 to "Scheduled charging", 11 to "Charging timed out", 12 to "Discharging complete", 13 to "Charging paused",
+        15 to "Not charging", // 停放状态下实测返回 15（常量表无定义，视作无充电活动）[D4]
     )
 
     val RANGE_ELEC = listOf(getter(Dev.STATISTIC, "getElecDrivingRangeValue") /*[D4] km*/)
