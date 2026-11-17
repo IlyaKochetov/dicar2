@@ -201,13 +201,13 @@ class HardwareMonitor(private val context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return null
         return when (runCatching { pm.currentThermalStatus }.getOrNull()) {
-            PowerManager.THERMAL_STATUS_NONE -> "正常"
-            PowerManager.THERMAL_STATUS_LIGHT -> "轻度发热"
-            PowerManager.THERMAL_STATUS_MODERATE -> "中度发热"
-            PowerManager.THERMAL_STATUS_SEVERE -> "重度发热"
-            PowerManager.THERMAL_STATUS_CRITICAL -> "临界"
-            PowerManager.THERMAL_STATUS_EMERGENCY -> "紧急降频"
-            PowerManager.THERMAL_STATUS_SHUTDOWN -> "即将关机"
+            PowerManager.THERMAL_STATUS_NONE -> "Normal"
+            PowerManager.THERMAL_STATUS_LIGHT -> "Light heating"
+            PowerManager.THERMAL_STATUS_MODERATE -> "Moderate heating"
+            PowerManager.THERMAL_STATUS_SEVERE -> "Severe heating"
+            PowerManager.THERMAL_STATUS_CRITICAL -> "Critical"
+            PowerManager.THERMAL_STATUS_EMERGENCY -> "Emergency throttling"
+            PowerManager.THERMAL_STATUS_SHUTDOWN -> "Shutdown imminent"
             else -> null
         }
     }
@@ -253,28 +253,28 @@ class HardwareMonitor(private val context: Context) {
         runCatching { getIntProperty(id) }.getOrNull()?.takeIf { it != Int.MIN_VALUE && it != 0 }
 
     private fun statusText(v: Int) = when (v) {
-        BatteryManager.BATTERY_STATUS_CHARGING -> "充电中"
-        BatteryManager.BATTERY_STATUS_DISCHARGING -> "放电中"
-        BatteryManager.BATTERY_STATUS_FULL -> "已充满"
-        BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "未充电"
+        BatteryManager.BATTERY_STATUS_CHARGING -> "Charging"
+        BatteryManager.BATTERY_STATUS_DISCHARGING -> "Discharging"
+        BatteryManager.BATTERY_STATUS_FULL -> "Full"
+        BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "Not charging"
         else -> HwItem.UNKNOWN
     }
 
     private fun healthText(v: Int) = when (v) {
-        BatteryManager.BATTERY_HEALTH_GOOD -> "良好"
-        BatteryManager.BATTERY_HEALTH_OVERHEAT -> "过热"
-        BatteryManager.BATTERY_HEALTH_DEAD -> "已损坏"
-        BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "过压"
-        BatteryManager.BATTERY_HEALTH_COLD -> "过冷"
-        BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> "故障"
+        BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
+        BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheated"
+        BatteryManager.BATTERY_HEALTH_DEAD -> "Dead"
+        BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE -> "Overvoltage"
+        BatteryManager.BATTERY_HEALTH_COLD -> "Too cold"
+        BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE -> "Failure"
         else -> HwItem.UNKNOWN
     }
 
     private fun pluggedText(v: Int) = when (v) {
-        0 -> "未连接"
-        BatteryManager.BATTERY_PLUGGED_AC -> "电源适配器"
+        0 -> "Not connected"
+        BatteryManager.BATTERY_PLUGGED_AC -> "AC power"
         BatteryManager.BATTERY_PLUGGED_USB -> "USB"
-        BatteryManager.BATTERY_PLUGGED_WIRELESS -> "无线充电"
+        BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Wireless charging"
         else -> HwItem.UNKNOWN
     }
 
