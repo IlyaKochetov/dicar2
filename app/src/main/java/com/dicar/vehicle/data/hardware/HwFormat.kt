@@ -88,11 +88,11 @@ object HwFormat {
     fun usage(used: Long?, total: Long?): String {
         if (used == null || total == null || total <= 0) return HwItem.UNKNOWN
         val pct = (used.toDouble() / total * 100).toFloat()
-        return "${bytes(used)} / ${bytes(total)}（${percent(pct)}）"
+        return "${bytes(used)} / ${bytes(total)}(${percent(pct)})"
     }
 
     fun list(values: Collection<String>): String =
-        values.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("、") ?: HwItem.UNKNOWN
+        values.filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: HwItem.UNKNOWN
 
     /** 电流：安卓报的是微安，正数充电、负数放电（部分厂商反着来，所以带符号原样显示）。 */
     fun microAmp(value: Int?): String = when {
