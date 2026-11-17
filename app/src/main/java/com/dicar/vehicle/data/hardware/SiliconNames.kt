@@ -4,7 +4,7 @@ package com.dicar.vehicle.data.hardware
  * 把 `/proc/cpuinfo` 里的数字编号和系统属性里的平台代号翻译成人能看懂的名字。
  *
  * 全是查表。表里没有的一律原样返回十六进制 / 代号本身，**绝不猜**——
- * 一个蒙错的「骁龙 865」比老老实实写 `sm6125` 有害得多。
+ * 一个蒙错的「Snapdragon 865」比老老实实写 `sm6125` 有害得多。
  */
 object SiliconNames {
 
@@ -15,14 +15,14 @@ object SiliconNames {
         0x42 -> "Broadcom"
         0x43 -> "Cavium"
         0x44 -> "DEC"
-        0x46 -> "富士通"
-        0x48 -> "海思"
+        0x46 -> "Fujitsu"
+        0x48 -> "HiSilicon"
         0x49 -> "Infineon"
         0x4d -> "Motorola / Freescale"
         0x4e -> "NVIDIA"
         0x50 -> "Applied Micro"
-        0x51 -> "高通"
-        0x53 -> "三星"
+        0x51 -> "Qualcomm"
+        0x53 -> "Samsung"
         0x56 -> "Marvell"
         0x61 -> "Apple"
         0x66 -> "Faraday"
@@ -36,7 +36,7 @@ object SiliconNames {
      * `CPU implementer` + `CPU part` → 核心型号。
      *
      * 同一颗 SoC 里大小核的 part 不同，所以这是区分 big.LITTLE 架构最可靠的办法
-     * （比按频率分组准：有些芯片大小核最高频一样）。
+     *  (比按频率分组准：有些芯片大小核最高频一样)。
      */
     fun core(implementer: Int?, part: Int?): String? {
         if (part == null) return null
@@ -72,10 +72,10 @@ object SiliconNames {
 
     private val QUALCOMM_PARTS = mapOf(
         0x00f to "Scorpion", 0x02d to "Scorpion", 0x04d to "Krait", 0x06f to "Krait",
-        0x201 to "Kryo（金）", 0x205 to "Kryo（金）", 0x211 to "Kryo（银）",
-        0x800 to "Kryo 2xx 金", 0x801 to "Kryo 2xx 银",
-        0x802 to "Kryo 3xx 金", 0x803 to "Kryo 3xx 银",
-        0x804 to "Kryo 4xx 金", 0x805 to "Kryo 4xx/5xx 银",
+        0x201 to "Kryo (Gold)", 0x205 to "Kryo (Gold)", 0x211 to "Kryo (Silver)",
+        0x800 to "Kryo 2xx Gold", 0x801 to "Kryo 2xx Silver",
+        0x802 to "Kryo 3xx Gold", 0x803 to "Kryo 3xx Silver",
+        0x804 to "Kryo 4xx Gold", 0x805 to "Kryo 4xx/5xx Silver",
         0xc00 to "Falkor", 0xc01 to "Saphira",
     )
 
@@ -88,10 +88,10 @@ object SiliconNames {
     )
 
     /**
-     * 平台代号（`ro.board.platform` / `ro.hardware`）→ 市售名。
+     * 平台代号 (`ro.board.platform` / `ro.hardware`)→ 市售名。
      *
      * 安卓 12 起有 `Build.SOC_MODEL` 可以直接读，但车机多是安卓 10，只能靠这张表。
-     * 车规芯片（SA 系列）单独列出来：这个 App 跑的就是车机。
+     * automotive芯片 (SA 系列)单独列出来：这个 App 跑的就是车机。
      */
     fun soc(platform: String?): String? {
         val key = platform?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: return null
@@ -99,66 +99,66 @@ object SiliconNames {
     }
 
     private val SOC_NAMES = mapOf(
-        // 车规
-        "msm8996au" to "骁龙 820A（车规）",
-        "sdm660_au" to "骁龙 660A（车规）",
-        "sa6155" to "骁龙 SA6155 车规平台",
-        "sa6155p" to "骁龙 SA6155P 车规平台",
-        "sa8155" to "骁龙 SA8155 车规平台",
-        "sa8155p" to "骁龙 8155 车规平台",
-        "sa8195p" to "骁龙 8195 车规平台",
-        "sa8295p" to "骁龙 8295 车规平台",
-        "sa8255p" to "骁龙 8255 车规平台",
-        "mt2712" to "联发科 MT2712 车规平台",
-        "mt8666" to "联发科 MT8666 车规平台",
-        "mt8675" to "联发科 MT8675 车规平台",
+        // automotive
+        "msm8996au" to "Snapdragon 820A (automotive)",
+        "sdm660_au" to "Snapdragon 660A (automotive)",
+        "sa6155" to "Snapdragon SA6155 automotive platform",
+        "sa6155p" to "Snapdragon SA6155P automotive platform",
+        "sa8155" to "Snapdragon SA8155 automotive platform",
+        "sa8155p" to "Snapdragon 8155 automotive platform",
+        "sa8195p" to "Snapdragon 8195 automotive platform",
+        "sa8295p" to "Snapdragon 8295 automotive platform",
+        "sa8255p" to "Snapdragon 8255 automotive platform",
+        "mt2712" to "MediaTek MT2712 automotive platform",
+        "mt8666" to "MediaTek MT8666 automotive platform",
+        "mt8675" to "MediaTek MT8675 automotive platform",
         // 手机 SoC：车机上常见的几代
-        "msm8953" to "骁龙 625 / 626",
-        "msm8937" to "骁龙 430",
-        "msm8940" to "骁龙 435",
-        "msm8998" to "骁龙 835",
-        "sdm630" to "骁龙 630",
-        "sdm636" to "骁龙 636",
-        "sdm660" to "骁龙 660",
-        "sdm670" to "骁龙 670",
-        "sdm710" to "骁龙 710",
-        "sdm845" to "骁龙 845",
-        "sm6115" to "骁龙 662",
-        "sm6125" to "骁龙 665",
-        "sm6150" to "骁龙 675",
-        "sm6225" to "骁龙 680",
-        "sm7125" to "骁龙 720G",
-        "sm7150" to "骁龙 730",
-        "sm8150" to "骁龙 855",
-        "sm8250" to "骁龙 865",
-        "sm8350" to "骁龙 888",
-        "sm8450" to "骁龙 8 Gen 1",
-        "sm8550" to "骁龙 8 Gen 2",
-        "sm8650" to "骁龙 8 Gen 3",
-        "kirin710" to "麒麟 710",
-        "kirin980" to "麒麟 980",
-        "kirin990" to "麒麟 990",
+        "msm8953" to "Snapdragon 625 / 626",
+        "msm8937" to "Snapdragon 430",
+        "msm8940" to "Snapdragon 435",
+        "msm8998" to "Snapdragon 835",
+        "sdm630" to "Snapdragon 630",
+        "sdm636" to "Snapdragon 636",
+        "sdm660" to "Snapdragon 660",
+        "sdm670" to "Snapdragon 670",
+        "sdm710" to "Snapdragon 710",
+        "sdm845" to "Snapdragon 845",
+        "sm6115" to "Snapdragon 662",
+        "sm6125" to "Snapdragon 665",
+        "sm6150" to "Snapdragon 675",
+        "sm6225" to "Snapdragon 680",
+        "sm7125" to "Snapdragon 720G",
+        "sm7150" to "Snapdragon 730",
+        "sm8150" to "Snapdragon 855",
+        "sm8250" to "Snapdragon 865",
+        "sm8350" to "Snapdragon 888",
+        "sm8450" to "Snapdragon 8 Gen 1",
+        "sm8550" to "Snapdragon 8 Gen 2",
+        "sm8650" to "Snapdragon 8 Gen 3",
+        "kirin710" to "Kirin 710",
+        "kirin980" to "Kirin 980",
+        "kirin990" to "Kirin 990",
         "exynos9820" to "Exynos 9820",
-        "mt6765" to "联发科 Helio P35",
-        "mt6785" to "联发科 Helio G95",
-        "mt6889" to "天玑 1000",
-        "mt6893" to "天玑 1200",
-        "ranchu" to "Android 模拟器（Goldfish/Ranchu）",
-        "goldfish" to "Android 模拟器（Goldfish）",
+        "mt6765" to "MediaTek Helio P35",
+        "mt6785" to "MediaTek Helio G95",
+        "mt6889" to "Dimensity 1000",
+        "mt6893" to "Dimensity 1200",
+        "ranchu" to "Android emulator (Goldfish/Ranchu)",
+        "goldfish" to "Android emulator (Goldfish)",
     )
 
-    /** 常见指令集扩展的中文注解，只标注值得一提的，其余原样列出。 */
+    /** 常见指令集extensions的中文注解，只标注值得一提的，其余原样列出。 */
     fun featureNote(feature: String): String? = when (feature.lowercase()) {
-        "neon", "asimd" -> "SIMD 向量"
-        "aes" -> "AES 加速"
-        "sha1", "sha2", "sha512", "sha3" -> "哈希加速"
-        "crc32" -> "CRC32 加速"
-        "fphp", "asimdhp" -> "半精度浮点"
-        "atomics" -> "原子指令（LSE）"
-        "sve", "sve2" -> "可变长向量"
-        "dotprod", "asimddp" -> "点积（AI 推理加速）"
-        "i8mm" -> "Int8 矩阵乘"
-        "bf16", "bti", "mte" -> "ARMv8.5+ 扩展"
+        "neon", "asimd" -> "SIMD vectors"
+        "aes" -> "AES acceleration"
+        "sha1", "sha2", "sha512", "sha3" -> "Hash acceleration"
+        "crc32" -> "CRC32 acceleration"
+        "fphp", "asimdhp" -> "Half-precision floating point"
+        "atomics" -> "Atomic instructions (LSE)"
+        "sve", "sve2" -> "Scalable vectors"
+        "dotprod", "asimddp" -> "Dot product (AI acceleration)"
+        "i8mm" -> "Int8 matrix multiplication"
+        "bf16", "bti", "mte" -> "ARMv8.5+ extensions"
         else -> null
     }
 }
