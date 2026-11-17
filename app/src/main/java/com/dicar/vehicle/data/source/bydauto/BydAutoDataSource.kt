@@ -61,7 +61,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     /** 建立/校验通道并记为当前通道；不可用时抛出带原因的异常。 */
     private fun acquire(): BydAccess {
         val a = active ?: pickAccess()?.also { active = it }
-            ?: throw IllegalStateException("未检测到车机调试口（127.0.0.1:5555）；请开启无线调试")
+            ?: throw IllegalStateException("Head unit debug port (127.0.0.1:5555) not found; enable wireless debugging")
         a.ensureReady()
         current = a
         return a
@@ -129,7 +129,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             accelerator = float(m.ACCELERATOR, 0.0, 100.0),
             brake = float(m.BRAKE, 0.0, 100.0),
             gear = int(m.GEAR, 0, 15)?.let { m.GEAR_LABELS[it] },
-            workMode = int(m.WORK_MODE, 0, 15)?.let { m.WORK_MODE_LABELS[it] ?: "模式 $it" },
+            workMode = int(m.WORK_MODE, 0, 15)?.let { m.WORK_MODE_LABELS[it] ?: "Mode $it" },
             driveMode = int(m.DRIVE_MODE, 0, 15)?.let { m.DRIVE_MODE_LABELS[it] ?: "模式 $it" },
 
             // 电池
@@ -141,7 +141,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             cellVoltageMin = float(m.CELL_VOLTAGE_MIN, 1.0, 5.0, scale = 0.001),
             batteryCurrent = float(m.BATTERY_CURRENT, -1_000.0, 1_000.0),
             chargeGunConnected = int(m.CHARGE_GUN, 1, 5)?.let { it >= 2 },
-            chargeStatus = int(m.CHARGE_STATE, 0, 255)?.let { m.CHARGE_STATE_LABELS[it] ?: "状态 $it" }
+            chargeStatus = int(m.CHARGE_STATE, 0, 255)?.let { m.CHARGE_STATE_LABELS[it] ?: "Status $it" }
                 ?: int(m.CHARGE_GUN, 1, 5)?.let { m.CHARGE_GUN_LABELS[it] },
             remainRangeElec = int(m.RANGE_ELEC, 0, 2_000),
             remainRangeFuel = int(m.RANGE_FUEL, 0, 2_000),
@@ -281,7 +281,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             }
 
             is VehicleCommand.AcFanLevel ->
-                toCommandResult(writeFidSym(Dev.AC, m.AC_WIND_LEVEL_SET_FID, m.AC_WIND_LEVEL_SET_FALLBACK, command.level), "风量")
+                toCommandResult(writeFidSym(Dev.AC, m.AC_WIND_LEVEL_SET_FID, m.AC_WIND_LEVEL_SET_FALLBACK, command.level), "Fan")
 
             is VehicleCommand.AcWind -> {
                 val code = m.AC_WIND_MODE_CODES[command.mode]
@@ -310,8 +310,8 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             is VehicleCommand.Quick -> when (command.action) {
                 QuickAction.FRONT_DEFROST -> namedThenFid(
                     Dev.AC, m.AC_SET_DEFROST, intArrayOf(1, 1, m.AC_SOURCE), m.AC_DEFROST_FRONT_SET_FID, null, 1)
-                QuickAction.QUICK_COOL -> toCommandResult(writeFidSym(Dev.AC, m.AC_MAX_COOLING_SET_FID, null, 1), "快速降温")
-                QuickAction.PURIFY -> toCommandResult(writeFidSym(Dev.AC, m.AC_QUICK_CLEAN_SET_FID, null, 1), "一键净化")
+                QuickAction.QUICK_COOL -> toCommandResult(writeFidSym(Dev.AC, m.AC_MAX_COOLING_SET_FID, null, 1), "Quick cool")
+                QuickAction.PURIFY -> toCommandResult(writeFidSym(Dev.AC, m.AC_QUICK_CLEAN_SET_FID, null, 1), "Air purification")
             }
         }
     }
@@ -337,11 +337,11 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     private fun toCommandResult(result: CallResult, name: String): CommandResult = when (result) {
         CallResult.Missing -> CommandResult.Unsupported("接口不存在：$name")
         is CallResult.Error -> CommandResult.Failed(
-            if (result.error is SecurityException) "无权限（请用无线调试授权）" else (result.error.message ?: result.error.toString())
+            if (result.error is SecurityException) "Permission denied (authorize wireless debugging)" else (result.error.message ?: result.error.toString())
         )
         is CallResult.Value -> {
             val code = (result.value as? Number)?.toInt()
-            if (code != null && ValueSanitizer.isErrorCode(code)) CommandResult.Failed("返回码 $code") else CommandResult.Sent
+            if (code != null && ValueSanitizer.isErrorCode(code)) CommandResult.Failed("Return code $code") else CommandResult.Sent
         }
     }
 
