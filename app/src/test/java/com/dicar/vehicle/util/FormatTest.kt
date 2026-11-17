@@ -20,8 +20,8 @@ class FormatTest {
         assertEquals("62 km/h", Format.num(61.6f, unit = "km/h"))
         assertEquals("22.5 ℃", Format.num(22.5f, 1, "℃"))
         assertEquals("3.342", Format.num(3.342f, 3))
-        assertEquals("关", Format.level(0))
-        assertEquals("2 档", Format.level(2))
+        assertEquals("Off", Format.level(0))
+        assertEquals("Level 2", Format.level(2))
     }
 
     @Test
