@@ -21,12 +21,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run download 44120629513 --repo "$GITHUB_REPOSITORY" --name DiCar-International-English-APK --dir release-files
+          gh run download 44127665931 --repo "$GITHUB_REPOSITORY" --name DiCar-International-English-APK --dir release-files
           APK="$(find release-files -maxdepth 2 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
-          cp "$APK" DiCar-International-English-v0.4.1.apk
-          test -s DiCar-International-English-v0.4.1.apk
-          sha256sum DiCar-International-English-v0.4.1.apk > DiCar-International-English-v0.4.1.apk.sha256
+          cp "$APK" DiCar-International-English-v0.4.2.apk
+          test -s DiCar-International-English-v0.4.2.apk
+          sha256sum DiCar-International-English-v0.4.2.apk > DiCar-International-English-v0.4.2.apk.sha256
 
       - name: Publish GitHub Release
         env:
@@ -34,32 +34,32 @@ jobs:
         run: |
           set -euo pipefail
           cat > RELEASE_NOTES.md <<'NOTES'
-          ## DiCar International — English UI (0.4.1)
+          ## DiCar International — English UI (0.4.2)
 
           English-first fork of [tsix2019/dicar2](https://github.com/tsix2019/dicar2).
 
           - English dashboard, battery, powertrain, climate controls, body status, settings, and overlay.
-          - English-first README and selected hardware diagnostics.
-          - Existing BYDAuto and DiPlus vehicle command protocols retained.
-          - All 93 unit tests passed in the GitHub Actions build used for this APK.
+          - English-first README and comprehensive English hardware diagnostics (CPU, storage, sensors, network, system).
+          - Corrected drive modes and charging-status labels in the BYDAuto/DiPlus data sources.\n          - Existing BYDAuto and DiPlus vehicle command protocols retained.
+          - Unit tests and release build passed in GitHub Actions.
 
-          **Install:** Download the attached `DiCar-International-English-v0.4.1.apk` and install it on a BYD DiLink head unit with Android ADB enabled.
+          **Install:** Download the attached `DiCar-International-English-v0.4.2.apk` and install it on a BYD DiLink head unit with Android ADB enabled.
 
           **Signing:** Debug-signed release variant; replacing an app signed with another key may require uninstalling the existing app, which deletes its local data.
 
-          **Compatibility:** Yuan Plus / DiLink 5.0 compatibility has not yet been verified on a real car. Some hardware diagnostic strings remain in Chinese. This is a head-unit app, not a cloud-connected smartphone remote.
+          **Compatibility:** Yuan Plus / DiLink 5.0 compatibility has not yet been verified on a real car. Some unmapped diagnostics from the vehicle firmware may still appear in Chinese. This is a head-unit app, not a cloud-connected smartphone remote.
 
-          Built from commit `5e8e0544d57dfc4d3d786fc22cd91c88f85b0670` on `feature/english-first-ui`.
+          Built from commit `a7184cf9c588772103ce775147bc5aa999169140` on `feature/english-first-ui`.
           NOTES
-          if gh release view 'v0.4.1-english.1' --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release v0.4.1-english.1 already exists; refusing to overwrite it."
+          if gh release view 'v0.4.2-english.1' --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v0.4.2-english.1 already exists; refusing to overwrite it."
             exit 1
           fi
-          gh release create 'v0.4.1-english.1' \
-            DiCar-International-English-v0.4.1.apk \
-            DiCar-International-English-v0.4.1.apk.sha256 \
+          gh release create 'v0.4.2-english.1' \
+            DiCar-International-English-v0.4.2.apk \
+            DiCar-International-English-v0.4.2.apk.sha256 \
             --repo "$GITHUB_REPOSITORY" \
-            --target '5e8e0544d57dfc4d3d786fc22cd91c88f85b0670' \
-            --title "DiCar International 0.4.1 — English APK" \
+            --target 'a7184cf9c588772103ce775147bc5aa999169140' \
+            --title "DiCar International 0.4.2 — English APK" \
             --notes-file RELEASE_NOTES.md \
             --latest
