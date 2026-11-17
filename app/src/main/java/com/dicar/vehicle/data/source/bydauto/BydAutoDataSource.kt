@@ -130,7 +130,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
             brake = float(m.BRAKE, 0.0, 100.0),
             gear = int(m.GEAR, 0, 15)?.let { m.GEAR_LABELS[it] },
             workMode = int(m.WORK_MODE, 0, 15)?.let { m.WORK_MODE_LABELS[it] ?: "Mode $it" },
-            driveMode = int(m.DRIVE_MODE, 0, 15)?.let { m.DRIVE_MODE_LABELS[it] ?: "模式 $it" },
+            driveMode = int(m.DRIVE_MODE, 0, 15)?.let { m.DRIVE_MODE_LABELS[it] ?: "Mode $it" },
 
             // 电池
             soc = float(m.SOC, 0.0, 100.0),
@@ -285,7 +285,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
 
             is VehicleCommand.AcWind -> {
                 val code = m.AC_WIND_MODE_CODES[command.mode]
-                    ?: return CommandResult.Unsupported("未配置 ${command.mode.label} 的编码")
+                    ?: return CommandResult.Unsupported("No encoding configured for ${command.mode.label}")
                 namedThenFid(Dev.AC, m.AC_SET_WIND_MODE, intArrayOf(code, m.AC_SOURCE), m.AC_WIND_MODE_SET_FID, null, code)
             }
 
@@ -302,7 +302,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
 
             is VehicleCommand.Glass -> {
                 val symbol = m.GLASS_SET_FIDS[command.zone]
-                    ?: return CommandResult.Unsupported("未配置 ${command.zone.label} 的写入口")
+                    ?: return CommandResult.Unsupported("No write interface configured for ${command.zone.label}")
                 val percent = if (command.open) m.GLASS_OPEN_PERCENT else m.GLASS_CLOSE_PERCENT
                 toCommandResult(writeFidSym(Dev.BODYWORK, symbol, null, percent), command.zone.label)
             }
@@ -335,7 +335,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     }
 
     private fun toCommandResult(result: CallResult, name: String): CommandResult = when (result) {
-        CallResult.Missing -> CommandResult.Unsupported("接口不存在：$name")
+        CallResult.Missing -> CommandResult.Unsupported("Interface missing: $name")
         is CallResult.Error -> CommandResult.Failed(
             if (result.error is SecurityException) "Permission denied (authorize wireless debugging)" else (result.error.message ?: result.error.toString())
         )
