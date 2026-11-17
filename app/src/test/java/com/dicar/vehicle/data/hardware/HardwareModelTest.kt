@@ -97,7 +97,7 @@ class FilterSectionsTest {
 
     @Test
     fun `命中分类名时整个分类保留`() {
-        val hit = filterSections(sections, "系统属性").single()
+        val hit = filterSections(sections, "Properties").single()
         assertEquals(2, hit.itemCount)
     }
 
