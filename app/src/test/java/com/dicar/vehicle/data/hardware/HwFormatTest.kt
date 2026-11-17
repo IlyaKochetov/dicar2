@@ -111,7 +111,7 @@ class SiliconNamesTest {
     fun `按 implementer 加 part 定位核心型号`() {
         assertEquals("Cortex-A55", SiliconNames.core(0x41, 0xd05))
         assertEquals("Cortex-X4", SiliconNames.core(0x41, 0xd82))
-        assertEquals("Kryo 4xx 金", SiliconNames.core(0x51, 0x804))
+        assertEquals("Kryo 4xx Gold", SiliconNames.core(0x51, 0x804))
     }
 
     @Test
@@ -129,9 +129,9 @@ class SiliconNamesTest {
 
     @Test
     fun `平台代号查市售名，大小写和空白都容忍`() {
-        assertEquals("骁龙 665", SiliconNames.soc("sm6125"))
-        assertEquals("骁龙 665", SiliconNames.soc(" SM6125 "))
-        assertEquals("骁龙 8155 车规平台", SiliconNames.soc("sa8155p"))
+        assertEquals("Snapdragon 665", SiliconNames.soc("sm6125"))
+        assertEquals("Snapdragon 665", SiliconNames.soc(" SM6125 "))
+        assertEquals("Snapdragon 8155 automotive platform", SiliconNames.soc("sa8155p"))
     }
 
     @Test
