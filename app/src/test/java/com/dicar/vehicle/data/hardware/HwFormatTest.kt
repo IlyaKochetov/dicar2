@@ -47,15 +47,15 @@ class HwFormatTest {
 
     @Test
     fun `开机时长精确到分钟，不足一分钟才给秒`() {
-        assertEquals("3 天 4 小时 5 分", HwFormat.duration(273_900_000))
-        assertEquals("2 小时 0 分", HwFormat.duration(7_200_000))
-        assertEquals("5 分", HwFormat.duration(300_000))
-        assertEquals("42 秒", HwFormat.duration(42_000))
+        assertEquals("3 d 4 h 5 min", HwFormat.duration(273_900_000))
+        assertEquals("2 h 0 min", HwFormat.duration(7_200_000))
+        assertEquals("5 min", HwFormat.duration(300_000))
+        assertEquals("42 sec", HwFormat.duration(42_000))
     }
 
     @Test
     fun `已用斜杠总量带百分比`() {
-        assertEquals("1.00 GB / 4.00 GB（25%）", HwFormat.usage(1L shl 30, 4L shl 30))
+        assertEquals("1.00 GB / 4.00 GB(25%)", HwFormat.usage(1L shl 30, 4L shl 30))
         assertEquals(HwItem.UNKNOWN, HwFormat.usage(100, 0))
         assertEquals(HwItem.UNKNOWN, HwFormat.usage(null, 1024))
     }
@@ -72,7 +72,7 @@ class HwFormatTest {
     @Test
     fun `温度和英寸`() {
         assertEquals("48.5 ℃", HwFormat.celsius(48.52f))
-        assertEquals("12.30 英寸", HwFormat.inches(12.3f))
+        assertEquals("12.30 inches", HwFormat.inches(12.3f))
         assertEquals(HwItem.UNKNOWN, HwFormat.inches(0f))
     }
 
@@ -100,7 +100,7 @@ class HwFormatTest {
 
     @Test
     fun `列表过滤空串，全空时显示未知`() {
-        assertEquals("ARM、高通", HwFormat.list(listOf("ARM", "", "高通")))
+        assertEquals("ARM, 高通", HwFormat.list(listOf("ARM", "", "高通")))
         assertEquals(HwItem.UNKNOWN, HwFormat.list(listOf("", "  ")))
     }
 }
