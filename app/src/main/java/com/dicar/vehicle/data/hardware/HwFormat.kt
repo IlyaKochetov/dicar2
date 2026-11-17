@@ -60,15 +60,15 @@ object HwFormat {
         val hours = (totalSec % 86_400) / 3_600
         val minutes = (totalSec % 3_600) / 60
         return buildString {
-            if (days > 0) append("$days 天 ")
-            if (days > 0 || hours > 0) append("$hours 小时 ")
-            if (days > 0 || hours > 0 || minutes > 0) append("$minutes 分") else append("${totalSec} 秒")
+            if (days > 0) append("$days d ")
+            if (days > 0 || hours > 0) append("$hours h ")
+            if (days > 0 || hours > 0 || minutes > 0) append("$minutes min") else append("${totalSec} sec")
         }.trim()
     }
 
     /** 屏幕物理尺寸等，保留一位小数。 */
     fun inches(value: Float?): String =
-        if (value == null || value <= 0) HwItem.UNKNOWN else "${fixed(value.toDouble(), 2)} 英寸"
+        if (value == null || value <= 0) HwItem.UNKNOWN else "${fixed(value.toDouble(), 2)} inches"
 
     /**
      * 标称容量：内核报的 MemTotal 永远小于包装盒上的数字（内核自身和保留区被扣掉了）。
