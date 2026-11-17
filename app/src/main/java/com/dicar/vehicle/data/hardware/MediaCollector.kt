@@ -22,26 +22,26 @@ fun collectCodecs(): HwSection {
 
     return section(HwCategory.CODEC) {
         block {
-            item("编解码器总数", "${codecs.size} 个")
-            item("视频", "${video.count { !it.isEncoder }} 解码 / ${video.count { it.isEncoder }} 编码")
-            item("音频", "${audio.count { !it.isEncoder }} 解码 / ${audio.count { it.isEncoder }} 编码")
+            item("Codec count", "${codecs.size} codecs")
+            item("Video", "${video.count { !it.isEncoder }} decoders / ${video.count { it.isEncoder }} encoders")
+            item("Audio", "${audio.count { !it.isEncoder }} decoders / ${audio.count { it.isEncoder }} encoders")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                item("硬件加速", "${codecs.count { it.isHardwareAccelerated }} 个")
-                item("纯软件", "${codecs.count { it.isSoftwareOnly }} 个")
+                item("Hardware accelerated", "${codecs.count { it.isHardwareAccelerated }} codecs")
+                item("Software only", "${codecs.count { it.isSoftwareOnly }} codecs")
             }
         }
 
-        codecBlock("视频解码", video.filter { !it.isEncoder })
-        codecBlock("视频编码", video.filter { it.isEncoder })
-        codecBlock("音频解码", audio.filter { !it.isEncoder })
-        codecBlock("音频编码", audio.filter { it.isEncoder })
+        codecBlock("Video decoding", video.filter { !it.isEncoder })
+        codecBlock("Video encoding", video.filter { it.isEncoder })
+        codecBlock("Audio decoding", audio.filter { !it.isEncoder })
+        codecBlock("Audio encoding", audio.filter { it.isEncoder })
 
-        block("数字版权（DRM）") {
+        block("Digital rights (DRM)") {
             val widevine = drmProps(WIDEVINE)
-            item("Widevine", if (widevine.isEmpty()) "不支持" else "支持")
+            item("Widevine", if (widevine.isEmpty()) "Unsupported" else "Supported")
             widevine.forEach { (k, v) -> item("  $k", v) }
-            item("PlayReady", if (drmProps(PLAYREADY).isEmpty()) "不支持" else "支持")
-            item("ClearKey", if (drmProps(CLEARKEY).isEmpty()) "不支持" else "支持")
+            item("PlayReady", if (drmProps(PLAYREADY).isEmpty()) "Unsupported" else "Supported")
+            item("ClearKey", if (drmProps(CLEARKEY).isEmpty()) "Unsupported" else "Supported")
         }
     }
 }
@@ -63,14 +63,14 @@ private fun hardware(info: MediaCodecInfo): Boolean =
 private fun codecSummary(info: MediaCodecInfo): String {
     val type = info.supportedTypes.firstOrNull() ?: return HwItem.UNKNOWN
     val caps = runCatching { info.getCapabilitiesForType(type) }.getOrNull()
-    val parts = mutableListOf(if (hardware(info)) "硬件" else "软件")
+    val parts = mutableListOf(if (hardware(info)) "Hardware" else "Software")
     parts += type.substringAfter('/')
 
     caps?.videoCapabilities?.let { v ->
         runCatching {
             val w = v.supportedWidths.upper
             val h = v.supportedHeights.upper
-            parts += "最高 $w×$h"
+            parts += "Up to $w×$h"
             parts += "${v.getSupportedFrameRatesFor(w, h).upper.toInt()} fps"
             // 低码率编解码器（h263 上限 384 kbps）整除成 0 会看着像坏了
             parts += HwFormat.kbps(v.bitrateRange.upper / 1000)
@@ -78,12 +78,12 @@ private fun codecSummary(info: MediaCodecInfo): String {
     }
     caps?.audioCapabilities?.let { a ->
         runCatching {
-            a.supportedSampleRateRanges.lastOrNull()?.let { parts += "最高 ${it.upper} Hz" }
-            parts += "${a.maxInputChannelCount} 声道"
+            a.supportedSampleRateRanges.lastOrNull()?.let { parts += "Up to ${it.upper} Hz" }
+            parts += "${a.maxInputChannelCount} channels"
         }
     }
-    caps?.profileLevels?.size?.takeIf { it > 0 }?.let { parts += "$it 个档次" }
-    runCatching { caps?.maxSupportedInstances }.getOrNull()?.takeIf { it > 0 }?.let { parts += "并发 $it" }
+    caps?.profileLevels?.size?.takeIf { it > 0 }?.let { parts += "$it profiles" }
+    runCatching { caps?.maxSupportedInstances }.getOrNull()?.takeIf { it > 0 }?.let { parts += "$it concurrent" }
     return parts.joinToString(" · ")
 }
 
@@ -99,10 +99,10 @@ private fun drmProps(uuid: UUID): Map<String, String> {
                     .getOrNull()?.takeIf { it.isNotBlank() }
                     ?.let { put(label, it) }
             }
-            runCatching { drm.connectedHdcpLevel }.getOrNull()?.let { put("HDCP 等级", hdcpName(it)) }
-            runCatching { drm.maxHdcpLevel }.getOrNull()?.let { put("HDCP 上限", hdcpName(it)) }
+            runCatching { drm.connectedHdcpLevel }.getOrNull()?.let { put("HDCP level", hdcpName(it)) }
+            runCatching { drm.maxHdcpLevel }.getOrNull()?.let { put("Maximum HDCP", hdcpName(it)) }
             runCatching { drm.maxSessionCount }.getOrNull()?.takeIf { it > 0 }
-                ?.let { put("最大会话数", it.toString()) }
+                ?.let { put("Maximum sessions", it.toString()) }
         }
     } catch (e: Throwable) {
         emptyMap()
@@ -112,8 +112,8 @@ private fun drmProps(uuid: UUID): Map<String, String> {
 }
 
 private fun hdcpName(level: Int): String = when (level) {
-    MediaDrm.HDCP_NONE -> "无"
-    MediaDrm.HDCP_NO_DIGITAL_OUTPUT -> "无数字输出"
+    MediaDrm.HDCP_NONE -> "None"
+    MediaDrm.HDCP_NO_DIGITAL_OUTPUT -> "No digital output"
     MediaDrm.HDCP_V1 -> "v1"
     MediaDrm.HDCP_V2 -> "v2"
     MediaDrm.HDCP_V2_1 -> "v2.1"
@@ -124,13 +124,13 @@ private fun hdcpName(level: Int): String = when (level) {
 
 private val DRM_PROPERTIES = listOf(
     // L1 = 整条解码链在 TEE 里，能放 1080p 以上的正版流媒体；L3 只能软解，画质被限制
-    "securityLevel" to "安全等级",
-    "version" to "版本",
-    "vendor" to "厂商",
-    "description" to "说明",
-    "algorithms" to "算法",
-    "systemId" to "系统 ID",
-    "maxNumberOfSessions" to "最大会话数",
+    "securityLevel" to "Security level",
+    "version" to "Version",
+    "vendor" to "Vendor",
+    "description" to "Description",
+    "algorithms" to "Algorithms",
+    "systemId" to "System ID",
+    "maxNumberOfSessions" to "Maximum sessions",
 )
 
 private val WIDEVINE = UUID(-0x121074568629b532L, -0x5c37d8232ae2de13L)
