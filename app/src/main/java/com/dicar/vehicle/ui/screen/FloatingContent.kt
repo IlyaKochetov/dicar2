@@ -113,16 +113,16 @@ fun FloatingContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ArcGauge(
                         value = state.displayRpm?.toFloat(), min = 0f, max = 12000f,
-                        label = "转速", unit = "rpm", modifier = Modifier.weight(1f),
+                        label = "RPM", unit = "rpm", modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                     ArcGauge(
                         value = state.batteryPower ?: state.power, min = -100f, max = 200f, zeroAt = 0f,
-                        label = "功率", unit = "kW", decimals = 1, modifier = Modifier.weight(1f),
+                        label = "Power", unit = "kW", decimals = 1, modifier = Modifier.weight(1f),
                     )
                     ArcGauge(
                         value = state.soc, min = 0f, max = 100f,
-                        label = "电量", unit = "%", decimals = 0, modifier = Modifier.weight(1f),
+                        label = "Battery", unit = "%", decimals = 0, modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -131,10 +131,10 @@ fun FloatingContent(
             if (FloatingBlock.CHART in blocks) {
                 HistoryChart(
                     series = buildList {
-                        add(ChartSeries("车速", "km/h", MaterialTheme.colorScheme.primary, history.map { it.speed }))
-                        add(ChartSeries("功率", "kW", MaterialTheme.colorScheme.tertiary, history.map { it.power }, baseline = 0f))
+                        add(ChartSeries("Speed", "km/h", MaterialTheme.colorScheme.primary, history.map { it.speed }))
+                        add(ChartSeries("Power", "kW", MaterialTheme.colorScheme.tertiary, history.map { it.power }, baseline = 0f))
                         if (history.any { it.engineRpm != null }) {
-                            add(ChartSeries("发动机", "rpm", MaterialTheme.colorScheme.error, history.map { it.engineRpm }, baseline = 0f))
+                            add(ChartSeries("Engine", "rpm", MaterialTheme.colorScheme.error, history.map { it.engineRpm }, baseline = 0f))
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -152,10 +152,10 @@ fun FloatingContent(
             }
 
             if (FloatingBlock.DETAILS in blocks) {
-                MetricRow("电量", Format.num(state.soc, 1, "%"))
-                MetricRow("续航", Format.num(state.remainRangeElec, unit = "km"))
-                MetricRow("车内 / 车外", "${Format.num(state.insideTemp, 1)} / ${Format.num(state.outsideTemp, 1, "℃")}")
-                MetricRow("电池温度", Format.num(state.batteryTempMax, 1, "℃"))
+                MetricRow("Battery", Format.num(state.soc, 1, "%"))
+                MetricRow("Range", Format.num(state.remainRangeElec, unit = "km"))
+                MetricRow("Inside / outside", "${Format.num(state.insideTemp, 1)} / ${Format.num(state.outsideTemp, 1, "℃")}")
+                MetricRow("Battery temperature", Format.num(state.batteryTempMax, 1, "℃"))
             }
         }
     }
