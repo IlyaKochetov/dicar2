@@ -64,7 +64,7 @@ class HardwareInspector(private val context: Context) {
     private fun render(sections: List<HwSection>, redact: Boolean) = buildString {
         appendLine("# Head Unit Hardware Report")
         appendLine("Time    : ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
-        appendLine("Device  : ${Build.MANUFACTURER} ${Build.MODEL}（${Build.DEVICE}）")
+        appendLine("Device  : ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
         appendLine("System  : Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
         appendLine("Tool    : DiCar International")
         appendLine(
@@ -94,27 +94,27 @@ class HardwareInspector(private val context: Context) {
 /** 电池。车机常常没有独立电池，这时如实说明而不是报一堆 0。 */
 fun batterySection(live: BatteryLive?): HwSection = section(HwCategory.BATTERY) {
     if (live == null) {
-        block { item("电池", "系统未提供电池信息") }
+        block { item("Battery", "System did not provide battery information") }
         return@section
     }
     block {
-        flag("存在电池", live.present, yes = "有", no = "无")
-        item("电量", HwFormat.percent(live.levelPercent))
-        item("状态", live.status)
-        item("健康", live.health)
-        item("供电", live.plugged)
-        item("类型", live.technology)
+        flag("Battery present", live.present, yes = "Yes", no = "No")
+        item("Battery level", HwFormat.percent(live.levelPercent))
+        item("Status", live.status)
+        item("Health", live.health)
+        item("Power source", live.plugged)
+        item("Type", live.technology)
     }
-    block("读数") {
-        item("电压", live.voltageMv?.let { "$it mV" })
-        item("温度", HwFormat.celsius(live.temperature))
-        item("瞬时电流", HwFormat.microAmp(live.currentNowUa))
-        item("平均电流", HwFormat.microAmp(live.currentAvgUa))
+    block("Readings") {
+        item("Voltage", live.voltageMv?.let { "$it mV" })
+        item("Temperature", HwFormat.celsius(live.temperature))
+        item("Instantaneous current", HwFormat.microAmp(live.currentNowUa))
+        item("Average current", HwFormat.microAmp(live.currentAvgUa))
         // 这个值除以电量百分比就能估出设计容量，是同类工具算「电池健康度」的依据
-        item("剩余电荷", live.chargeCounterUah?.let { "${it / 1000} mAh" })
-        item("剩余能量", live.energyCounterNwh?.let { "${it / 1_000_000} mWh" })
-        item("估算总容量", estimateCapacity(live))
-        item("循环次数", live.cycleCount?.toString())
+        item("Remaining charge", live.chargeCounterUah?.let { "${it / 1000} mAh" })
+        item("Remaining energy", live.energyCounterNwh?.let { "${it / 1_000_000} mWh" })
+        item("Estimated full capacity", estimateCapacity(live))
+        item("Cycle count", live.cycleCount?.toString())
     }
 }
 
@@ -125,26 +125,26 @@ fun batterySection(live: BatteryLive?): HwSection = section(HwCategory.BATTERY) 
 private fun estimateCapacity(live: BatteryLive): String? {
     val charge = live.chargeCounterUah ?: return null
     val percent = live.levelPercent?.takeIf { it > 5f } ?: return null
-    return "约 ${(charge / 1000 / percent * 100).toInt()} mAh"
+    return "approx. ${(charge / 1000 / percent * 100).toInt()} mAh"
 }
 
 /** 温度。各路 thermal zone 的当前读数。 */
 fun thermalSection(live: LiveStats): HwSection = section(HwCategory.THERMAL) {
     block {
-        item("系统热状态", live.thermalStatus)
-        item("温区数量", "${live.thermal.size} 路")
-        item("最高温度", live.thermal.mapNotNull { it.celsius }.maxOrNull()?.let { HwFormat.celsius(it) })
+        item("System thermal status", live.thermalStatus)
+        item("Thermal zones", "${live.thermal.size} zones")
+        item("Maximum temperature", live.thermal.mapNotNull { it.celsius }.maxOrNull()?.let { HwFormat.celsius(it) })
     }
     if (live.thermal.isEmpty()) {
         block {
-            item("提示", "系统不允许应用读取 /sys/class/thermal，这在较新的安卓上很常见")
+            item("Note", "System restricts access to /sys/class/thermal on newer Android versions")
         }
         return@section
     }
-    block("温区（${live.thermal.size}）") {
+    block("Thermal zones (${live.thermal.size})") {
         // 按温度从高到低，最值得关注的排最上面
         live.thermal.sortedByDescending { it.celsius ?: -999f }.forEach { t ->
-            item("${t.type}（${t.zone}）", HwFormat.celsius(t.celsius))
+            item("${t.type} (${t.zone})", HwFormat.celsius(t.celsius))
         }
     }
 }
