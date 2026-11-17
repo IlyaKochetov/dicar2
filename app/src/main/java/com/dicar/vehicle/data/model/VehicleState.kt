@@ -91,7 +91,7 @@ data class VehicleState(
         get() = engineRpm ?: listOfNotNull(motorRpmFront, motorRpmRear).maxByOrNull { kotlin.math.abs(it) }
 
     val displayRpmLabel: String
-        get() = if (engineRpm != null) "发动机转速" else "电机转速"
+        get() = if (engineRpm != null) "Engine RPM" else "Motor RPM"
 
     /** 单体压差（mV），由最高/最低单体电压推算。 */
     val cellVoltageDiffMv: Float?
@@ -105,17 +105,17 @@ data class VehicleState(
             val engineRunning = (engineRpm ?: 0) > 300
             val motorRpm = maxOf(motorRpmFront ?: 0, motorRpmRear ?: 0)
             val batPower = batteryPower ?: power ?: return when {
-                chargeStatus != null && chargeGunConnected == true -> "外部电源 → 电池"
+                chargeStatus != null && chargeGunConnected == true -> "External power → Battery"
                 else -> null
             }
             return when {
-                chargeGunConnected == true && batPower < -0.5f -> "外部电源 → 电池"
-                batPower < -0.5f && engineRunning -> "发动机 → 电池（发电）"
-                batPower < -0.5f -> "车轮 → 电机 → 电池（能量回收）"
-                engineRunning && motorRpm > 0 -> "发动机 + 电池 → 车轮"
-                engineRunning -> "发动机 → 车轮"
-                batPower > 0.5f -> "电池 → 电机 → 车轮"
-                else -> "静止 / 无明显能量流"
+                chargeGunConnected == true && batPower < -0.5f -> "External power → Battery"
+                batPower < -0.5f && engineRunning -> "Engine → Battery (charging)"
+                batPower < -0.5f -> "Wheels → Motor → Battery (regen)"
+                engineRunning && motorRpm > 0 -> "Engine + Battery → Wheels"
+                engineRunning -> "Engine → Wheels"
+                batPower > 0.5f -> "Battery → Motor → Wheels"
+                else -> "Stationary / no significant energy flow"
             }
         }
 }
@@ -197,20 +197,20 @@ data class Openings(
 )
 
 enum class AcWindMode(val label: String) {
-    FACE("吹面"),
-    FACE_FEET("面+脚"),
-    FEET("吹脚"),
-    FEET_DEFROST("脚+除霜"),
-    DEFROST("除霜"),
+    FACE("Face"),
+    FACE_FEET("Face + feet"),
+    FEET("Feet"),
+    FEET_DEFROST("Feet + defrost"),
+    DEFROST("Defrost"),
 }
 
 enum class AcCycleMode(val label: String) {
-    INNER("内循环"),
-    OUTER("外循环"),
+    INNER("Recirculate"),
+    OUTER("Fresh air"),
 }
 
 enum class DataSourceType(val label: String) {
     BYD_AUTO("BYDAuto"),
-    DI_PLUS("迪加"),
-    MOCK("模拟"),
+    DI_PLUS("DiPlus"),
+    MOCK("Mock"),
 }
