@@ -61,8 +61,8 @@ class DiPlusDataSource(
             accelerator = f("Accel", 0.0, 100.0),
             brake = f("Brake", 0.0, 100.0),
             gear = i("Gear", 0, 15)?.let { GEAR_LABELS[it] },
-            workMode = i("WorkMode", 0, 15)?.let { WORK_MODE_LABELS[it] ?: "模式 $it" },
-            driveMode = i("DriveMode", 0, 15)?.let { DRIVE_MODE_LABELS[it] ?: "模式 $it" },
+            workMode = i("WorkMode", 0, 15)?.let { WORK_MODE_LABELS[it] ?: "Mode $it" },
+            driveMode = i("DriveMode", 0, 15)?.let { DRIVE_MODE_LABELS[it] ?: "Mode $it" },
 
             soc = f("SOC", 0.0, 100.0),
             batteryTempMax = f("BatTMax", -40.0, 80.0),
@@ -149,9 +149,9 @@ class DiPlusDataSource(
         return try {
             val body = httpGet("$baseUrl/api/sendCmd?cmd=" + URLEncoder.encode(CMD_PREFIX + cmd, "UTF-8"))
             if (JSONObject(body).optBoolean("success")) CommandResult.Sent
-            else CommandResult.Failed("迪加返回失败")
+            else CommandResult.Failed("DiPlus command failed")
         } catch (e: IOException) {
-            CommandResult.Failed("迪加无响应：${e.message}")
+            CommandResult.Failed("DiPlus did not respond: ${e.message}")
         }
     }
 
@@ -167,7 +167,7 @@ class DiPlusDataSource(
     /** 迪加的开合宏：「打开100」=全开、「打开0」=关。 */
     private fun glassSuffix(open: Boolean) = if (open) "打开100" else "打开0"
 
-    private fun unsupported(what: String) = CommandResult.Unsupported("迪加不支持$what")
+    private fun unsupported(what: String) = CommandResult.Unsupported("DiPlus does not support $what")
 
     /** 调 getDiPars 并解析出 别名 → 值字符串。连接失败抛 IOException，交给 Repository 降级。 */
     private fun query(template: String): Map<String, String> {
@@ -254,10 +254,10 @@ class DiPlusDataSource(
         val TEMPLATE: String = PARAMS.joinToString("|") { (alias, name) -> "$alias:{$name}" }
 
         val GEAR_LABELS = mapOf(1 to "P", 2 to "R", 3 to "N", 4 to "D")
-        val WORK_MODE_LABELS = mapOf(0 to "停止", 1 to "EV", 2 to "强制EV", 3 to "HEV")
-        val DRIVE_MODE_LABELS = mapOf(1 to "ECO", 2 to "运动")
-        val CHARGE_GUN_LABELS = mapOf(1 to "未插枪", 2 to "交流枪", 3 to "直流枪", 4 to "转换枪", 5 to "放电枪")
-        val CHARGE_STATE_LABELS = mapOf(1 to "就绪", 2 to "充电中", 3 to "充电完成", 4 to "充电终止") // [?] 顺序推测
+        val WORK_MODE_LABELS = mapOf(0 to "Stopped", 1 to "EV", 2 to "Forced EV", 3 to "HEV")
+        val DRIVE_MODE_LABELS = mapOf(1 to "Eco", 2 to "Sport")
+        val CHARGE_GUN_LABELS = mapOf(1 to "Unplugged", 2 to "AC connector", 3 to "DC connector", 4 to "Adapter", 5 to "V2L connector")
+        val CHARGE_STATE_LABELS = mapOf(1 to "Ready", 2 to "Charging", 3 to "Charge complete", 4 to "Charging stopped") // [?] 顺序推测
 
         /** 空调出风模式 1-7，按迪加指令表顺序推测 [?] */
         val WIND_MODE_CODES = mapOf(
