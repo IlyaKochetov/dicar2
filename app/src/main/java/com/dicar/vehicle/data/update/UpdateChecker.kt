@@ -50,9 +50,9 @@ class UpdateChecker(
 
     suspend fun check(): UpdateState = withContext(Dispatchers.IO) {
         val release = try {
-            ReleaseParser.parse(fetch(endpoint)) ?: return@withContext fallback("解析发布信息失败")
+            ReleaseParser.parse(fetch(endpoint)) ?: return@withContext fallback("Could not parse release information")
         } catch (e: IOException) {
-            return@withContext fallback("网络不可达：${e.message ?: "连接失败"}")
+            return@withContext fallback("Network unavailable: ${e.message ?: "connection failed"}")
         } catch (e: HttpStatus) {
             return@withContext fallback(e.describe())
         }
@@ -81,7 +81,7 @@ class UpdateChecker(
         return UpdateState.Available(
             ReleaseInfo(
                 version = version,
-                title = "版本 $version",
+                title = "Version $version",
                 notes = "",
                 pageUrl = "$RELEASES_PAGE/tag/$tag",
                 apkUrl = null,
@@ -123,7 +123,7 @@ class UpdateChecker(
     ) : Exception() {
         fun describe(): String = when {
             rateRemaining == 0 -> "GitHub 匿名接口每小时 $ANON_QUOTA 次已用完${resetHint()}"
-            code == 404 -> "仓库里还没有发布任何版本"
+            code == 404 -> "No releases have been published yet"
             code == 403 || code == 429 -> "GitHub 拒绝了请求（$code${serverMessage?.let { "：$it" }.orEmpty()}）"
             else -> "服务器返回 $code${serverMessage?.let { "：$it" }.orEmpty()}"
         }
@@ -162,7 +162,7 @@ class UpdateChecker(
     }
 
     companion object {
-        const val REPO = "tsix2019/dicar2"
+        const val REPO = "IlyaKochetov/dicar2"
         const val LATEST_RELEASE_API = "https://api.github.com/repos/$REPO/releases/latest"
         const val RELEASES_PAGE = "https://github.com/$REPO/releases"
         /** 网页版同名地址，302 到带版本号的 tag 页，不消耗 API 配额。 */
