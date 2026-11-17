@@ -108,7 +108,7 @@ fun CoreRow(core: CoreLive, modifier: Modifier = Modifier) {
             ThinBar(core.load?.div(100f), loadColor(core.load), height = 8)
         }
         Text(
-            if (core.online) HwFormat.kHz(core.curKhz) else "离线",
+            if (core.online) HwFormat.kHz(core.curKhz) else "Offline",
             style = MaterialTheme.typography.labelMedium,
             color = if (core.online) MaterialTheme.colorScheme.onSurface else dim,
             maxLines = 1,
