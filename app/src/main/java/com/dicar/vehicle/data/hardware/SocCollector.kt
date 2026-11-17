@@ -24,37 +24,37 @@ fun collectSoc(context: Context): HwSection {
                 Build.SOC_MODEL.takeIf { it != Build.UNKNOWN }
             } else null
             // 系统自己报的型号优先，但仍过一遍查表：有些平台报的是代号而不是市售名
-            item("型号", socModel?.let { SiliconNames.soc(it) ?: it } ?: SiliconNames.soc(platform) ?: platform)
-            item("平台代号", platform)
+            item("Model", socModel?.let { SiliconNames.soc(it) ?: it } ?: SiliconNames.soc(platform) ?: platform)
+            item("Platform codename", platform)
             item(
-                "制造商",
+                "Manufacturer",
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Build.SOC_MANUFACTURER.takeIf { it != Build.UNKNOWN }
                 } else null
                     ?: SiliconNames.implementer(id?.implementer),
             )
-            itemIfPresent("cpuinfo 标识", id?.hardware)
-            itemIfPresent("x86 型号串", id?.modelName)
-            item("核心数", "${dirs.size.takeIf { it > 0 } ?: Runtime.getRuntime().availableProcessors()} 核")
-            item("进程可见核心", "${Runtime.getRuntime().availableProcessors()} 核")
+            itemIfPresent("CPUinfo identifier", id?.hardware)
+            itemIfPresent("x86 model string", id?.modelName)
+            item("CPU cores", "${dirs.size.takeIf { it > 0 } ?: Runtime.getRuntime().availableProcessors()} cores")
+            item("Cores available to process", "${Runtime.getRuntime().availableProcessors()} cores")
         }
 
-        block("指令集") {
-            item("主 ABI", Build.SUPPORTED_ABIS.firstOrNull())
+        block("Instruction sets") {
+            item("Primary ABI", Build.SUPPORTED_ABIS.firstOrNull())
             // 列表为空是「一个都不支持」，不是「读不到」，不能显示成未知
-            item("64 位 ABI", Build.SUPPORTED_64_BIT_ABIS.joinToString("、").ifEmpty { "无" })
-            item("32 位 ABI", Build.SUPPORTED_32_BIT_ABIS.joinToString("、").ifEmpty { "无" })
-            item("位宽", if (Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()) "64 位" else "32 位")
-            itemIfPresent("架构版本", id?.variant?.let { "variant 0x%x / revision %d".format(it, id.revision ?: 0) })
+            item("64-bit ABI", Build.SUPPORTED_64_BIT_ABIS.joinToString(", ").ifEmpty { "None" })
+            item("32-bit ABI", Build.SUPPORTED_32_BIT_ABIS.joinToString(", ").ifEmpty { "None" })
+            item("Bitness", if (Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()) "64-bit" else "32-bit")
+            itemIfPresent("Architecture version", id?.variant?.let { "variant 0x%x / revision %d".format(it, id.revision ?: 0) })
             val features = id?.features.orEmpty()
             if (features.isNotEmpty()) {
-                item("扩展数量", "${features.size} 项")
-                item("扩展", features.joinToString(" "))
+                item("Extension count", "${features.size} items")
+                item("Extensions", features.joinToString(" "))
                 // 挑出几个对实际性能影响明显的单独点名，省得在一长串里找
                 val notable = features.mapNotNull { f ->
                     SiliconNames.featureNote(f)?.let { "$f（$it）" }
                 }
-                if (notable.isNotEmpty()) item("关键扩展", notable.joinToString("、"))
+                if (notable.isNotEmpty()) item("Notable extensions", notable.joinToString(", "))
             }
         }
 
@@ -68,7 +68,7 @@ fun collectSoc(context: Context): HwSection {
         }.groupBy { it.second to it.third }
 
         if (clusters.isNotEmpty()) {
-            block("核心分簇") {
+            block("CPU clusters") {
                 clusters.entries
                     .sortedByDescending { it.key.second ?: 0 }
                     .forEachIndexed { i, (key, members) ->
@@ -76,9 +76,9 @@ fun collectSoc(context: Context): HwSection {
                         val indices = members.map { it.first }.sorted()
                         val minKhz = SysFs.khz("/sys/devices/system/cpu/cpu${indices.first()}/cpufreq/cpuinfo_min_freq")
                         item(
-                            "簇 ${i + 1}" + (model?.let { "（$it）" } ?: ""),
+                            "Cluster ${i + 1}" + (model?.let { "（$it）" } ?: ""),
                             listOfNotNull(
-                                "${indices.size} 核",
+                                "${indices.size} cores",
                                 "CPU${indices.first()}-${indices.last()}",
                                 // 频率读不到就别写「未知 ~ 未知」，那一串比空着还难看
                                 if (minKhz == null && maxKhz == null) null
@@ -89,28 +89,28 @@ fun collectSoc(context: Context): HwSection {
             }
         }
 
-        block("调频") {
+        block("Frequency scaling") {
             val gov0 = "/sys/devices/system/cpu/cpu0/cpufreq"
-            item("当前策略", SysFs.text("$gov0/scaling_governor"))
-            item("可用策略", SysFs.text("$gov0/scaling_available_governors")?.replace(' ', '、'))
-            item("驱动", SysFs.text("$gov0/scaling_driver"))
+            item("Current governor", SysFs.text("$gov0/scaling_governor"))
+            item("Available governors", SysFs.text("$gov0/scaling_available_governors")?.replace(' ', '、'))
+            item("Driver", SysFs.text("$gov0/scaling_driver"))
             itemIfPresent(
-                "可选频点",
+                "Available frequencies",
                 SysFs.text("$gov0/scaling_available_frequencies")
                     ?.split(' ')
                     // 和 SysFs.khz 同样的理由：这里也可能是频率表序号而不是 kHz
                     ?.mapNotNull { it.toLongOrNull()?.takeIf { v -> v >= SysFs.MIN_PLAUSIBLE_KHZ } }
                     ?.takeIf { it.isNotEmpty() }
-                    ?.let { "${it.size} 档：${HwFormat.kHz(it.min())} ~ ${HwFormat.kHz(it.max())}" },
+                    ?.let { "${it.size} levels: ${HwFormat.kHz(it.min())}–${HwFormat.kHz(it.max())}" },
             )
         }
 
-        block("板级") {
-            item("主板", Build.BOARD)
-            item("硬件代号", Build.HARDWARE)
-            item("引导程序", Build.BOOTLOADER)
-            itemIfPresent("DDR 类型", SysFs.firstProp("ro.boot.ddr_type", "ro.boot.ddr_size"))
-            item("可运行 32 位应用", Build.SUPPORTED_32_BIT_ABIS.isNotEmpty())
+        block("Board") {
+            item("Board name", Build.BOARD)
+            item("Hardware codename", Build.HARDWARE)
+            item("Bootloader", Build.BOOTLOADER)
+            itemIfPresent("DDR type", SysFs.firstProp("ro.boot.ddr_type", "ro.boot.ddr_size"))
+            item("Can run 32-bit apps", Build.SUPPORTED_32_BIT_ABIS.isNotEmpty())
         }
     }
 }
@@ -123,53 +123,53 @@ fun collectGpu(context: Context): HwSection {
 
     return section(HwCategory.GPU) {
         block {
-            item("型号", gl?.renderer)
-            item("厂商", gl?.vendor)
+            item("Model", gl?.renderer)
+            item("Vendor", gl?.vendor)
             item("OpenGL ES", gl?.version)
-            item("着色器语言", gl?.glslVersion)
+            item("Shader language", gl?.glslVersion)
             item(
-                "系统声明版本",
+                "Reported API version",
                 am?.deviceConfigurationInfo?.glEsVersion?.let { "OpenGL ES $it" },
             )
         }
 
         if (gl != null) {
-            block("能力上限") {
-                item("最大纹理", gl.maxTextureSize?.let { "$it × $it" })
-                item("最大立方体贴图", gl.maxCubeMapSize?.let { "$it × $it" })
-                item("最大视口", gl.maxViewport?.let { "${it.first} × ${it.second}" })
-                item("最大渲染缓冲", gl.maxRenderbufferSize?.let { "$it × $it" })
-                item("顶点属性数", gl.maxVertexAttribs?.toString())
-                item("纹理单元（片元）", gl.maxTextureUnits?.toString())
-                item("纹理单元（合计）", gl.maxCombinedTextureUnits?.toString())
-                item("各向异性过滤", gl.maxAnisotropy?.let { "${it.toInt()}×" })
-                item("多重采样上限", gl.maxSamples?.let { "${it}× MSAA" })
-                item("压缩纹理格式", gl.compressedFormats?.let { "$it 种" })
+            block("Capability limits") {
+                item("Maximum texture size", gl.maxTextureSize?.let { "$it × $it" })
+                item("Maximum cube-map size", gl.maxCubeMapSize?.let { "$it × $it" })
+                item("Maximum viewport", gl.maxViewport?.let { "${it.first} × ${it.second}" })
+                item("Maximum renderbuffer", gl.maxRenderbufferSize?.let { "$it × $it" })
+                item("Vertex attributes", gl.maxVertexAttribs?.toString())
+                item("Texture units (fragment)", gl.maxTextureUnits?.toString())
+                item("Texture units (total)", gl.maxCombinedTextureUnits?.toString())
+                item("Anisotropic filtering", gl.maxAnisotropy?.let { "${it.toInt()}×" })
+                item("Maximum multisampling", gl.maxSamples?.let { "${it}× MSAA" })
+                item("Compressed texture formats", gl.compressedFormats?.let { "$it types" })
             }
-            block("扩展") {
-                item("数量", "${gl.extensions.size} 项")
+            block("Extensions") {
+                item("Count", "${gl.extensions.size} items")
                 // 这几个最常被用来判断能不能跑某类效果，单独列
-                item("ASTC 压缩纹理", gl.extensions.any { "texture_compression_astc" in it })
-                item("ETC2 压缩纹理", gl.extensions.any { "ES3_compatibility" in it || "texture_compression_etc2" in it })
-                item("浮点纹理", gl.extensions.any { it.endsWith("texture_float") })
-                item("完整列表", gl.extensions.sorted().joinToString(" "))
+                item("ASTC textures", gl.extensions.any { "texture_compression_astc" in it })
+                item("ETC2 textures", gl.extensions.any { "ES3_compatibility" in it || "texture_compression_etc2" in it })
+                item("Floating-point textures", gl.extensions.any { it.endsWith("texture_float") })
+                item("Full list", gl.extensions.sorted().joinToString(" "))
             }
         }
 
         block("Vulkan") {
             val level = pm.featureVersion("android.hardware.vulkan.level")
             val hwVersion = pm.featureVersion("android.hardware.vulkan.version")
-            item("硬件支持", hwVersion != null)
+            item("Hardware supported", hwVersion != null)
             // version 是打包成整数的 Vulkan 版本号，按 (22,12,0) 位宽拆
-            item("版本", hwVersion?.let { "%d.%d.%d".format(it shr 22, (it shr 12) and 0x3ff, it and 0xfff) })
-            item("硬件等级", level?.toString())
-            item("计算能力", pm.featureVersion("android.hardware.vulkan.compute")?.let { "等级 $it" })
+            item("Version", hwVersion?.let { "%d.%d.%d".format(it shr 22, (it shr 12) and 0x3ff, it and 0xfff) })
+            item("Hardware level", level?.toString())
+            item("Compute capability", pm.featureVersion("android.hardware.vulkan.compute")?.let { "Level $it" })
         }
 
-        block("其他") {
-            item("AEP 扩展包", pm.hasSystemFeature(PackageManager.FEATURE_OPENGLES_EXTENSION_PACK))
+        block("Other") {
+            item("AEP extension pack", pm.hasSystemFeature(PackageManager.FEATURE_OPENGLES_EXTENSION_PACK))
             // 频率是动态值，在顶部实时面板里看；这里给出节点路径，方便 adb 直接读
-            itemIfPresent("频率节点", SysFs.gpuFreqNode())
+            itemIfPresent("Frequency node", SysFs.gpuFreqNode())
         }
     }
 }
