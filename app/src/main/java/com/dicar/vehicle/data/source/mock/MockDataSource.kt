@@ -74,7 +74,7 @@ class MockDataSource : VehicleDataSource {
             batteryCurrent = motorPower * 1000f / 535.2f,
             batteryPower = motorPower,
             chargeGunConnected = false,
-            chargeStatus = "未充电",
+            chargeStatus = "Not charging",
             remainRangeElec = (soc * 1.2f).toInt(),
             remainRangeFuel = 820,
             fuelPercent = 64f,
@@ -112,10 +112,10 @@ class MockDataSource : VehicleDataSource {
         Thread.sleep(150)
         when (command) {
             is VehicleCommand.Quick -> if (command.action == QuickAction.PURIFY) {
-                return CommandResult.Unsupported("模拟：本车无净化功能")
+                return CommandResult.Unsupported("Mock: air purification unavailable")
             }
             is VehicleCommand.SeatVent -> if (command.seat == Zone.PASSENGER) {
-                return CommandResult.Unsupported("模拟：副驾无通风")
+                return CommandResult.Unsupported("Mock: passenger ventilation unavailable")
             }
             else -> Unit
         }
