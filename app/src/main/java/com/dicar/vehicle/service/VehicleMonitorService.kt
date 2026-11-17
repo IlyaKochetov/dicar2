@@ -86,10 +86,10 @@ class VehicleMonitorService : Service() {
         val soc = Format.num(state.soc, 1, "%")
         val ac = when (state.acOn) {
             null -> Format.NA
-            false -> "关"
-            true -> "开 " + Format.num(state.acTempDriver, 1, "℃")
+            false -> "Off"
+            true -> "On " + Format.num(state.acTempDriver, 1, "℃")
         }
-        return "车速 $speed  |  SOC $soc  |  空调 $ac"
+        return "Speed $speed  |  SOC $soc  |  Climate $ac"
     }
 
     @SuppressLint("MissingPermission") // 已用 areNotificationsEnabled 判断
@@ -115,7 +115,7 @@ class VehicleMonitorService : Service() {
             )
         )
         .addAction(
-            0, "停止采集",
+            0, "Stop monitoring",
             PendingIntent.getService(
                 this, 1,
                 Intent(this, VehicleMonitorService::class.java).setAction(ACTION_STOP),
@@ -125,8 +125,8 @@ class VehicleMonitorService : Service() {
         .build()
 
     private fun createChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, "车辆数据采集", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "后台持续采集车辆数据时显示"
+        val channel = NotificationChannel(CHANNEL_ID, "Vehicle monitoring", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Shown while collecting vehicle data in the background"
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
