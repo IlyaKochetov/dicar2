@@ -11,7 +11,7 @@ data class HwItem(val label: String, val value: String) {
 
     companion object {
         /** 读不到时的占位。和车辆数据的 `N/A` 区分开：那是「车没给」，这是「系统不让读」。 */
-        const val UNKNOWN = "未知"
+        const val UNKNOWN = "Unknown"
     }
 }
 
@@ -24,21 +24,21 @@ data class HwSection(val category: HwCategory, val blocks: List<HwBlock>) {
 
 /** 顶部筛选条上的分类。顺序就是卡片的默认排布顺序。 */
 enum class HwCategory(val label: String, val glyph: String) {
-    SOC("处理器", "▤"),
-    GPU("图形", "◈"),
-    MEMORY("内存", "▥"),
-    STORAGE("存储", "▦"),
-    DISPLAY("屏幕", "▭"),
-    BATTERY("电源", "▮"),
-    THERMAL("温度", "▲"),
-    SENSOR("传感器", "◉"),
-    CAMERA("摄像头", "◎"),
-    NETWORK("网络", "◇"),
-    AUDIO("音频", "♪"),
-    CODEC("编解码", "▷"),
-    SYSTEM("系统", "⬡"),
-    FEATURE("系统特性", "✦"),
-    PROPS("系统属性", "≡"),
+    SOC("Processor", "▤"),
+    GPU("Graphics", "◈"),
+    MEMORY("Memory", "▥"),
+    STORAGE("Storage", "▦"),
+    DISPLAY("Display", "▭"),
+    BATTERY("Power", "▮"),
+    THERMAL("Thermal", "▲"),
+    SENSOR("Sensors", "◉"),
+    CAMERA("Cameras", "◎"),
+    NETWORK("Network", "◇"),
+    AUDIO("Audio", "♪"),
+    CODEC("Codecs", "▷"),
+    SYSTEM("System", "⬡"),
+    FEATURE("Features", "✦"),
+    PROPS("Properties", "≡"),
 }
 
 // ---------------------------------------------------------------------------
@@ -63,13 +63,13 @@ class BlockScope internal constructor() {
     }
 
     /** 能力类的布尔：这台机器支不支持某个东西。 */
-    fun item(label: String, value: Boolean?) = item(label, value?.let { if (it) "支持" else "不支持" })
+    fun item(label: String, value: Boolean?) = item(label, value?.let { if (it) "Supported" else "Unsupported" })
 
     /**
      * 状态类的布尔。和上面的「支持/不支持」分开，否则会写出
      * 「存在电池 支持」「检测到 su 不支持」这种读不通的行。
      */
-    fun flag(label: String, value: Boolean?, yes: String = "是", no: String = "否") =
+    fun flag(label: String, value: Boolean?, yes: String = "Yes", no: String = "No") =
         item(label, value?.let { if (it) yes else no })
 
     internal fun build(subtitle: String?) = HwBlock(subtitle, items.toList())
