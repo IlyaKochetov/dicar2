@@ -8,18 +8,18 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /** 悬浮窗里可以自由开关的内容块。 */
 enum class FloatingBlock(val label: String) {
-    READOUT("主读数（车速）"),
-    GAUGES("仪表盘"),
-    CHART("趋势曲线"),
-    CAR("车辆孪生图"),
-    DETAILS("明细数据"),
+    READOUT("Main readout (speed)"),
+    GAUGES("Gauges"),
+    CHART("Trends"),
+    CAR("Vehicle twin"),
+    DETAILS("Details"),
 }
 
 enum class SourceMode(val label: String) {
-    AUTO("自动（BYDAuto → 迪加）"),
-    BYD_AUTO("仅 BYDAuto"),
-    DI_PLUS("仅迪加"),
-    MOCK("模拟数据（无车调试）"),
+    AUTO("Auto (BYDAuto → DiPlus)"),
+    BYD_AUTO("BYDAuto only"),
+    DI_PLUS("DiPlus only"),
+    MOCK("Mock data (offline testing)"),
 }
 
 /** 轻量设置存储（SharedPreferences），不引入 DataStore 以控制包体。 */
