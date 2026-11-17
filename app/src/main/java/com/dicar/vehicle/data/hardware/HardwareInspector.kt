@@ -40,7 +40,7 @@ class HardwareInspector(private val context: Context) {
     } catch (e: Throwable) {
         Log.w(TAG, "collect ${category.name} failed", e)
         section(category) {
-            block { item("采集失败", "${e.javaClass.simpleName}: ${e.message ?: "无详细信息"}") }
+            block { item("Scan failed", "${e.javaClass.simpleName}: ${e.message ?: "No details"}") }
         }
     }
 
@@ -62,14 +62,14 @@ class HardwareInspector(private val context: Context) {
     }
 
     private fun render(sections: List<HwSection>, redact: Boolean) = buildString {
-        appendLine("# 车机硬件信息")
-        appendLine("时间    : ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
-        appendLine("设备    : ${Build.MANUFACTURER} ${Build.MODEL}（${Build.DEVICE}）")
-        appendLine("系统    : Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
-        appendLine("采集方   : DiCar 车况")
+        appendLine("# Head Unit Hardware Report")
+        appendLine("Time    : ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+        appendLine("Device  : ${Build.MANUFACTURER} ${Build.MODEL}（${Build.DEVICE}）")
+        appendLine("System  : Android ${Build.VERSION.RELEASE} / API ${Build.VERSION.SDK_INT}")
+        appendLine("Tool    : DiCar International")
         appendLine(
-            if (redact) "标识符   : 已隐去（序列号 / MAC / IP / Android ID 等）"
-            else "标识符   : 原样保留 —— 这份文件能定位到这台设备，分享前请自行确认"
+            if (redact) "Identifiers: redacted (serial / MAC / IP / Android ID)"
+            else "Identifiers: retained; check before sharing"
         )
         appendLine()
         for (s in sections) {
@@ -157,7 +157,7 @@ fun thermalSection(live: LiveStats): HwSection = section(HwCategory.THERMAL) {
  */
 object Redactor {
 
-    const val MASK = "[已隐去]"
+    const val MASK = "[REDACTED]"
 
     fun scrub(label: String, value: String): String {
         if (value == HwItem.UNKNOWN || value.isBlank()) return value
