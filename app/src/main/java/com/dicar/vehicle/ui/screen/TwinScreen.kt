@@ -119,24 +119,24 @@ private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier 
 private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val power = state.batteryPower ?: state.power
-    DataCard(title = "驱动功率", modifier = modifier) {
+    DataCard(title = "Drive power", modifier = modifier) {
         HeroNumber(power, "kW", size = 40.sp, signed = true)
         SignedBar(power, maxPositive = MAX_DRIVE_KW, maxNegative = MAX_REGEN_KW)
-        SignedBarScale("回收", "0", "驱动")
+        SignedBarScale("Regen", "0", "Drive")
         Spacer(Modifier.height(2.dp))
-        LabeledBar("电量", state.soc, scheme.secondary)
-        LabeledBar("油量", state.fuelPercent, scheme.tertiary)
+        LabeledBar("Battery", state.soc, scheme.secondary)
+        LabeledBar("Fuel", state.fuelPercent, scheme.tertiary)
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth()) {
             val style = MaterialTheme.typography.labelLarge
             Text(
-                "纯电 ${Format.num(state.remainRangeElec, unit = "km")}",
+                "Electric ${Format.num(state.remainRangeElec, unit = "km")}",
                 style = style,
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "综合 ${Format.num(combinedRange(state), unit = "km")}",
+                "Combined ${Format.num(combinedRange(state), unit = "km")}",
                 style = style,
                 color = scheme.onSurfaceVariant,
             )
@@ -162,16 +162,16 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
     // 发动机和电机各画各的，有哪个画哪个。不要再画一条「主转速」——
     // 有发动机时主转速就等于发动机转速，两条线会完全重合，等于白画一条。
     val series = buildList {
-        add(ChartSeries("功率", "kW", scheme.secondary, history.map { it.power }, baseline = 0f))
+        add(ChartSeries("Power", "kW", scheme.secondary, history.map { it.power }, baseline = 0f))
         if (history.any { it.engineRpm != null }) {
-            add(ChartSeries("发动机", "rpm", scheme.error, history.map { it.engineRpm }, baseline = 0f))
+            add(ChartSeries("Engine", "rpm", scheme.error, history.map { it.engineRpm }, baseline = 0f))
         }
         if (history.any { it.motorRpm != null }) {
-            add(ChartSeries("电机", "rpm", scheme.primary, history.map { it.motorRpm }, baseline = 0f))
+            add(ChartSeries("Motor", "rpm", scheme.primary, history.map { it.motorRpm }, baseline = 0f))
         }
         // 两个转速都读不到时，退回主转速，至少别让图里只剩一条功率线
         if (size == 1 && history.any { it.rpm != null }) {
-            add(ChartSeries("转速", "rpm", scheme.primary, history.map { it.rpm }, baseline = 0f))
+            add(ChartSeries("RPM", "rpm", scheme.primary, history.map { it.rpm }, baseline = 0f))
         }
     }
     DataCard(title = null) {
@@ -203,33 +203,33 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
 private fun radarSummary(state: VehicleState): Pair<String, Boolean>? {
     val radar = state.radar
     if (!radar.hasAnyReading && radar.reverseSwitchOn != true) return null
-    val nearest = radar.nearest ?: return "雷达 无障碍" to false
-    return "雷达 $nearest 档" to (nearest <= RADAR_ALERT_LEVEL)
+    val nearest = radar.nearest ?: return "Radar clear" to false
+    return "Radar level $nearest" to (nearest <= RADAR_ALERT_LEVEL)
 }
 
 private fun acSummary(state: VehicleState): String = when (state.acOn) {
-    null -> "空调 ${Format.NA}"
-    false -> "空调 关"
+    null -> "Climate ${Format.NA}"
+    false -> "Climate off"
     true -> buildString {
-        append("空调 ")
+        append("Climate ")
         append(Format.num(state.acTempDriver, 1, "℃"))
-        if (state.acAuto == true) append(" 自动")
+        if (state.acAuto == true) append(" Auto")
     }
 }
 
 /** 返回 文案 to 是否告警。四轮都读不到就显示 N/A，不假装正常。 */
 private fun tyreSummary(state: VehicleState): Pair<String, Boolean> {
     val values = state.tirePressure.toList().filterNotNull()
-    if (values.isEmpty()) return "胎压 ${Format.NA}" to false
+    if (values.isEmpty()) return "Tyres ${Format.NA}" to false
     val bad = values.any { it < TYRE_MIN_KPA || it > TYRE_MAX_KPA }
-    return if (bad) "胎压异常" to true else "胎压正常" to false
+    return if (bad) "Tyre pressure alert" to true else "Tyre pressure OK" to false
 }
 
 private fun doorSummary(state: VehicleState): Pair<String, Boolean> {
     val d = state.doors
     val all = listOf(d.fl, d.fr, d.rl, d.rr, d.hood, d.trunk)
-    if (all.all { it == null }) return "车门 ${Format.NA}" to false
-    return if (all.any { it == true }) "有门未关" to true else "车门已关" to false
+    if (all.all { it == null }) return "Doors ${Format.NA}" to false
+    return if (all.any { it == true }) "Door open" to true else "Doors closed" to false
 }
 
 private const val ENGINE_MAX_RPM = 6000f
