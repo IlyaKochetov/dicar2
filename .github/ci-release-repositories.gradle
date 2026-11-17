@@ -1,0 +1,10 @@
+// Use official repositories for the tagged release build when the configured mirror is unavailable.
+settingsEvaluated { settings ->
+    settings.pluginManagement.repositories.clear()
+    settings.pluginManagement.repositories.google()
+    settings.pluginManagement.repositories.mavenCentral()
+    settings.pluginManagement.repositories.gradlePluginPortal()
+    settings.dependencyResolutionManagement.repositories.clear()
+    settings.dependencyResolutionManagement.repositories.google()
+    settings.dependencyResolutionManagement.repositories.mavenCentral()
+}

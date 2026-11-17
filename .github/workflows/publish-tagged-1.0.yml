@@ -1,0 +1,45 @@
+name: Publish tagged 1.0 APK
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-tagged-1.0.yml, .github/ci-release-repositories.gradle]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: '1.0'
+          path: tagged-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK components
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test and build tagged source
+        working-directory: tagged-source
+        run: |
+          chmod +x ./gradlew
+          ./gradlew -I ../.github/ci-release-repositories.gradle testDebugUnitTest assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/*.apk ../DiCar-International-1.0.apk
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha256sum DiCar-International-1.0.apk > DiCar-International-1.0.apk.sha256
+          gh release create 1.0 DiCar-International-1.0.apk DiCar-International-1.0.apk.sha256 \
+            --title "DiCar International 1.0" --notes-file tagged-source/CHANGELOG.md --latest
