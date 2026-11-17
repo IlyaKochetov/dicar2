@@ -67,7 +67,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
     val winRr by animateFloatAsState((state.windowPercent.rr ?: 0) / 100f, label = "winRr")
 
     val driving = (state.speed ?: 0f) > 1f
-    val charging = state.chargeGunConnected == true || state.chargeStatus?.contains("充电中") == true
+    val charging = state.chargeGunConnected == true || state.chargeStatus == "Charging"
 
     // 雷达工作时整车缩小，给车头车尾的三道弧让出空间。
     // 按 0.82 的高度占比画，弧会伸到画布外被卡片边界切掉；0.68 才刚好容得下
