@@ -56,7 +56,7 @@ fun AcPanel(
     modifier: Modifier = Modifier,
 ) {
     DataCard(
-        title = "空调控制",
+        title = "Climate controls",
         modifier = modifier,
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -71,34 +71,34 @@ fun AcPanel(
         },
     ) {
         MetricPair(
-            "车内温度", Format.num(state.insideTemp, 1, "℃"),
-            "车外温度", Format.num(state.outsideTemp, 1, "℃"),
+            "Cabin temperature", Format.num(state.insideTemp, 1, "℃"),
+            "Outside temperature", Format.num(state.outsideTemp, 1, "℃"),
         )
         HorizontalDivider()
 
         Stepper(
-            label = "主驾温度",
+            label = "Driver temperature",
             value = Format.num(state.acTempDriver, 1, "℃"),
             pending = "ac_temp_${Zone.DRIVER}" in pending,
             onMinus = { actions.adjustTemp(Zone.DRIVER, -tempStep) },
             onPlus = { actions.adjustTemp(Zone.DRIVER, tempStep) },
         )
         Stepper(
-            label = "副驾温度",
+            label = "Passenger temperature",
             value = Format.num(state.acTempPassenger, 1, "℃"),
             pending = "ac_temp_${Zone.PASSENGER}" in pending,
             onMinus = { actions.adjustTemp(Zone.PASSENGER, -tempStep) },
             onPlus = { actions.adjustTemp(Zone.PASSENGER, tempStep) },
         )
         Stepper(
-            label = "风量",
+            label = "Fan speed",
             value = Format.level(state.acFanLevel),
             pending = "ac_fan" in pending,
             onMinus = { actions.adjustFan(-1) },
             onPlus = { actions.adjustFan(1) },
         )
 
-        Label("出风模式")
+        Label("Airflow direction")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AcWindMode.entries.forEach { mode ->
                 FilterChip(
@@ -118,31 +118,31 @@ fun AcPanel(
             FilterChip(
                 selected = state.acCycle == AcCycleMode.INNER,
                 onClick = { actions.toggleCycle() },
-                label = { Text(state.acCycle?.label ?: "循环 ${Format.NA}") },
+                label = { Text(state.acCycle?.label ?: "Circulation ${Format.NA}") },
             )
         }
 
         HorizontalDivider()
-        Label("座椅（点按循环 关→1→…→${state.seatMaxLevel}）")
+        Label("Seats (tap to cycle Off→1→…→${state.seatMaxLevel})")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SeatButton("主驾加热", state.seatHeatDriver, "seat_heat_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
+            SeatButton("Driver heating", state.seatHeatDriver, "seat_heat_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatHeat(Zone.DRIVER)
             }
-            SeatButton("副驾加热", state.seatHeatPassenger, "seat_heat_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
+            SeatButton("Passenger heating", state.seatHeatPassenger, "seat_heat_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatHeat(Zone.PASSENGER)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SeatButton("主驾通风", state.seatVentDriver, "seat_vent_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
+            SeatButton("Driver ventilation", state.seatVentDriver, "seat_vent_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatVent(Zone.DRIVER)
             }
-            SeatButton("副驾通风", state.seatVentPassenger, "seat_vent_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
+            SeatButton("Passenger ventilation", state.seatVentPassenger, "seat_vent_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatVent(Zone.PASSENGER)
             }
         }
 
         HorizontalDivider()
-        Label("车窗 / 天窗（车辆会实际动作，注意周围）")
+        Label("Windows / sunroof (vehicle parts move; check surroundings)")
         GlassRow(GlassZone.WINDOW_FL, state.windowPercent.fl, pending, actions, Modifier.weight(1f)) {
             GlassRowItem(GlassZone.WINDOW_FR, state.windowPercent.fr, pending, actions)
         }
@@ -154,7 +154,7 @@ fun AcPanel(
         }
 
         HorizontalDivider()
-        Label("快捷")
+        Label("Quick actions")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction.entries.forEach { action ->
                 OutlinedButton(onClick = { actions.quick(action) }) {
@@ -224,11 +224,11 @@ private fun GlassControl(zone: GlassZone, percent: Int?, pending: Set<String>, a
             Spacer(Modifier.width(6.dp))
         }
         OutlinedButton(onClick = { actions.glass(zone, true) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text("开")
+            Text("On")
         }
         Spacer(Modifier.width(6.dp))
         OutlinedButton(onClick = { actions.glass(zone, false) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text("关")
+            Text("Off")
         }
     }
 }
