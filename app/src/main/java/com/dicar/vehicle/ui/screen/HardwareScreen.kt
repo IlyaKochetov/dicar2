@@ -158,12 +158,12 @@ private fun LiveStrip(live: LiveStats?) {
         horizontalArrangement = Arrangement.spacedBy(28.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LiveChip(if (blocked) "CPU（本应用）" else "CPU", HwFormat.percent(load), loadColor(load))
-        LiveChip("内存", HwFormat.percent(memPercent), MaterialTheme.colorScheme.secondary)
-        LiveChip("内存用量", HwFormat.usage(live?.memUsed, live?.memTotal))
+        LiveChip(if (blocked) "CPU (this app)" else "CPU", HwFormat.percent(load), loadColor(load))
+        LiveChip("Memory", HwFormat.percent(memPercent), MaterialTheme.colorScheme.secondary)
+        LiveChip("Memory usage", HwFormat.usage(live?.memUsed, live?.memTotal))
         LiveChip("GPU", HwFormat.hz(live?.gpuHz))
-        LiveChip("最高温", HwFormat.celsius(hottest), tempColor(hottest))
-        LiveChip("开机", HwFormat.duration(live?.uptimeMs))
+        LiveChip("Max temp", HwFormat.celsius(hottest), tempColor(hottest))
+        LiveChip("Uptime", HwFormat.duration(live?.uptimeMs))
     }
 }
 
@@ -196,9 +196,9 @@ private fun LivePanel(live: LiveStats?) {
         val blocked = live != null && !live.systemLoadAvailable
 
         @Composable
-        fun cpuTile(modifier: Modifier) = DataCard("处理器实时", modifier) {
+        fun cpuTile(modifier: Modifier) = DataCard("Live CPU", modifier) {
             UsageTile(
-                label = if (blocked) "本应用占用" else "总占用",
+                label = if (blocked) "App usage" else "Total usage",
                 headline = HwFormat.percent(if (blocked) live?.appLoad else live?.totalLoad),
                 caption = buildString {
                     append("${cores.count { it.online }} / ${cores.size} 核在线")
@@ -214,9 +214,9 @@ private fun LivePanel(live: LiveStats?) {
         }
 
         @Composable
-        fun memTile(modifier: Modifier) = DataCard("内存实时", modifier) {
+        fun memTile(modifier: Modifier) = DataCard("Live memory", modifier) {
             UsageTile(
-                label = "内存占用",
+                label = "Memory used",
                 headline = HwFormat.percent(
                     live?.let { s ->
                         val used = s.memUsed ?: return@let null
@@ -232,8 +232,8 @@ private fun LivePanel(live: LiveStats?) {
                 },
                 color = MaterialTheme.colorScheme.secondary,
             )
-            HwRow("可用", HwFormat.bytes(live?.memAvailable))
-            HwRow("页缓存", HwFormat.bytes(live?.memCached))
+            HwRow("Available", HwFormat.bytes(live?.memAvailable))
+            HwRow("Page cache", HwFormat.bytes(live?.memCached))
             HwRow("Swap 已用", HwFormat.bytes(
                 live?.let { s ->
                     val t = s.swapTotal ?: return@let null
@@ -241,22 +241,22 @@ private fun LivePanel(live: LiveStats?) {
                     t - f
                 }
             ))
-            HwRow("本应用堆", HwFormat.usage(live?.javaHeapUsed, live?.javaHeapMax))
-            HwRow("本应用原生内存", HwFormat.bytes(live?.nativeHeapUsed))
-            HwRow("本应用文件句柄", live?.openFds?.toString() ?: HwItem.UNKNOWN)
+            HwRow("App heap", HwFormat.usage(live?.javaHeapUsed, live?.javaHeapMax))
+            HwRow("App native memory", HwFormat.bytes(live?.nativeHeapUsed))
+            HwRow("App file handles", live?.openFds?.toString() ?: HwItem.UNKNOWN)
             if (live?.lowMemory == true) {
-                HwRow("警告", "系统报告内存紧张")
+                HwRow("Warning", "System reports low memory")
             }
         }
 
         @Composable
-        fun miscTile(modifier: Modifier) = DataCard("图形 · 温度 · 电源", modifier) {
-            HwRow("GPU 频率", HwFormat.hz(live?.gpuHz))
-            HwRow("热状态", live?.thermalStatus ?: HwItem.UNKNOWN)
+        fun miscTile(modifier: Modifier) = DataCard("Graphics · temperature · power", modifier) {
+            HwRow("GPU frequency", HwFormat.hz(live?.gpuHz))
+            HwRow("Thermal status", live?.thermalStatus ?: HwItem.UNKNOWN)
             UsageTile(
-                label = "最高温度",
+                label = "Highest temperature",
                 headline = HwFormat.celsius(hottest),
-                caption = live?.thermal?.maxByOrNull { it.celsius ?: -999f }?.type ?: "无温度传感器可读",
+                caption = live?.thermal?.maxByOrNull { it.celsius ?: -999f }?.type ?: "No readable temperature sensor",
                 // 以 100℃ 为满格：车机 SoC 到这个温度肯定已经在保护降频了
                 fraction = hottest?.div(100f),
                 color = tempColor(hottest),
@@ -264,18 +264,18 @@ private fun LivePanel(live: LiveStats?) {
             HorizontalDivider()
             val battery = live?.battery
             if (battery?.present == true) {
-                HwRow("电量", HwFormat.percent(battery.levelPercent))
-                HwRow("状态", battery.status)
-                HwRow("电压", battery.voltageMv?.let { "$it mV" } ?: HwItem.UNKNOWN)
-                HwRow("电池温度", HwFormat.celsius(battery.temperature))
+                HwRow("Battery level", HwFormat.percent(battery.levelPercent))
+                HwRow("Status", battery.status)
+                HwRow("Voltage", battery.voltageMv?.let { "$it mV" } ?: HwItem.UNKNOWN)
+                HwRow("Battery temperature", HwFormat.celsius(battery.temperature))
             } else {
                 // 车机常态：直接吃整车 12V 电，没有自己的电池
-                HwRow("电池", "无独立电池（由车辆供电）")
-                HwRow("供电", battery?.plugged ?: HwItem.UNKNOWN)
+                HwRow("Battery", "No internal battery (vehicle-powered)")
+                HwRow("Power supply", battery?.plugged ?: HwItem.UNKNOWN)
             }
             HorizontalDivider()
-            HwRow("开机时长", HwFormat.duration(live?.uptimeMs))
-            HwRow("深度睡眠", HwFormat.duration(live?.let { it.uptimeMs - it.awakeMs }))
+            HwRow("Uptime", HwFormat.duration(live?.uptimeMs))
+            HwRow("Deep sleep", HwFormat.duration(live?.let { it.uptimeMs - it.awakeMs }))
         }
 
         if (wide) {
@@ -317,9 +317,9 @@ private fun Toolbar(
                 value = query,
                 onValueChange = onQuery,
                 singleLine = true,
-                label = { Text("搜索（型号、属性名、数值都能搜）") },
+                label = { Text("Search models, properties and values") },
                 trailingIcon = {
-                    if (query.isNotEmpty()) TextButton(onClick = { onQuery("") }) { Text("清除") }
+                    if (query.isNotEmpty()) TextButton(onClick = { onQuery("") }) { Text("Clear") }
                 },
                 modifier = Modifier.weight(1f),
             )
@@ -328,16 +328,16 @@ private fun Toolbar(
                     CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text("重新采集")
+                Text("Rescan")
             }
-            OutlinedButton(onClick = onExport, enabled = sections.isNotEmpty()) { Text("导出") }
+            OutlinedButton(onClick = onExport, enabled = sections.isNotEmpty()) { Text("Export") }
         }
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val total = sections.sumOf { it.itemCount }
-            CategoryChip("全部（$total）", category == null) { onCategory(null) }
+            CategoryChip("All ($total)", category == null) { onCategory(null) }
             sections.forEach { s ->
                 CategoryChip(
                     "${s.category.glyph} ${s.category.label}（${s.itemCount}）",
@@ -396,7 +396,7 @@ private fun SectionCard(section: HwSection, filtering: Boolean) {
             val cap = if (filtering) Int.MAX_VALUE else MAX_ROWS
             block.items.take(cap).forEach { HwRow(it.label, it.value) }
             if (block.items.size > cap) {
-                HwRow("…", "还有 ${block.items.size - cap} 条，用上方搜索或导出查看")
+                HwRow("…", "${block.items.size - cap} more items; use search or export to view")
             }
         }
     }
@@ -407,9 +407,9 @@ private fun Loading() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CircularProgressIndicator()
-            Text("正在枚举硬件…", style = MaterialTheme.typography.bodyMedium)
+            Text("Scanning hardware…", style = MaterialTheme.typography.bodyMedium)
             Text(
-                "首次采集要枚举全部编解码器和系统属性，车机上可能要几秒",
+                "The initial scan enumerates codecs and system properties and may take a few seconds",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -421,7 +421,7 @@ private fun Loading() {
 private fun Empty(query: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            if (query.isBlank()) "没有采集到硬件信息" else "没有匹配「$query」的条目",
+            if (query.isBlank()) "No hardware information collected" else "No results for \"$query\"",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -441,20 +441,20 @@ private fun HardwareExportDialog(
     if (state !is HardwareExportState.Done) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
-        title = { Text("硬件信息已导出") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Hardware report exported") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    state.filePath?.let { "已保存：$it" } ?: "写文件失败，只能在下方查看",
+                    state.filePath?.let { "Saved: $it" } ?: "File write failed; showing report below",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("隐去设备标识", style = MaterialTheme.typography.bodyMedium)
+                        Text("Redact device identifiers", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "抹掉序列号、MAC、IP、Android ID 这类能定位到这台车机的内容。" +
-                                "默认开启——导出文件通常是要发给别人看的。",
+                            "Hide serial numbers, MAC/IP addresses, Android IDs and other identifiers." +
+                                "Enabled by default for reports that may be shared.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
