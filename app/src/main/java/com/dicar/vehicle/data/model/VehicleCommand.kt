@@ -18,7 +18,7 @@ sealed interface VehicleCommand {
 
     data class AcPower(val on: Boolean) : VehicleCommand {
         override val key = "ac_power"
-        override val label = if (on) "打开空调" else "关闭空调"
+        override val label = if (on) "Climate on" else "Climate off"
         override val expected = on
         override fun readBack(state: VehicleState) = state.acOn
         override fun applyTo(state: VehicleState) = state.copy(acOn = on)
@@ -26,7 +26,7 @@ sealed interface VehicleCommand {
 
     data class AcAuto(val on: Boolean) : VehicleCommand {
         override val key = "ac_auto"
-        override val label = if (on) "空调自动" else "退出自动"
+        override val label = if (on) "Auto climate" else "Auto climate off"
         override val expected = on
         override fun readBack(state: VehicleState) = state.acAuto
         override fun applyTo(state: VehicleState) = state.copy(acAuto = on)
@@ -34,7 +34,7 @@ sealed interface VehicleCommand {
 
     data class AcTemperature(val zone: Zone, val celsius: Float) : VehicleCommand {
         override val key = "ac_temp_$zone"
-        override val label = "${zone.label}温度 $celsius℃"
+        override val label = "${zone.label} temperature $celsius℃"
         override val expected = celsius
         override fun readBack(state: VehicleState) = when (zone) {
             Zone.DRIVER -> state.acTempDriver
@@ -48,7 +48,7 @@ sealed interface VehicleCommand {
 
     data class AcFanLevel(val level: Int) : VehicleCommand {
         override val key = "ac_fan"
-        override val label = "风量 $level 档"
+        override val label = "Fan level $level"
         override val expected = level
         override fun readBack(state: VehicleState) = state.acFanLevel
         override fun applyTo(state: VehicleState) = state.copy(acFanLevel = level)
@@ -56,7 +56,7 @@ sealed interface VehicleCommand {
 
     data class AcWind(val mode: AcWindMode) : VehicleCommand {
         override val key = "ac_wind"
-        override val label = "出风 ${mode.label}"
+        override val label = "Airflow ${mode.label}"
         override val expected = mode
         override fun readBack(state: VehicleState) = state.acWindMode
         override fun applyTo(state: VehicleState) = state.copy(acWindMode = mode)
@@ -72,7 +72,7 @@ sealed interface VehicleCommand {
 
     data class SeatHeat(val seat: Zone, val level: Int) : VehicleCommand {
         override val key = "seat_heat_$seat"
-        override val label = "${seat.label}座椅加热 $level 档"
+        override val label = "${seat.label} seat heating level $level"
         override val expected = level
         override fun readBack(state: VehicleState) = when (seat) {
             Zone.DRIVER -> state.seatHeatDriver
@@ -86,7 +86,7 @@ sealed interface VehicleCommand {
 
     data class SeatVent(val seat: Zone, val level: Int) : VehicleCommand {
         override val key = "seat_vent_$seat"
-        override val label = "${seat.label}座椅通风 $level 档"
+        override val label = "${seat.label} seat ventilation level $level"
         override val expected = level
         override fun readBack(state: VehicleState) = when (seat) {
             Zone.DRIVER -> state.seatVentDriver
@@ -104,7 +104,7 @@ sealed interface VehicleCommand {
      */
     data class Glass(val zone: GlassZone, val open: Boolean) : VehicleCommand {
         override val key = "glass_$zone"
-        override val label = "${zone.label}${if (open) "打开" else "关闭"}"
+        override val label = "${zone.label} ${if (open) "open" else "close"}"
         override val expected: Any? = null
         override fun readBack(state: VehicleState): Any? = null
         override fun applyTo(state: VehicleState) = state // 真实开度由轮询反映，不做乐观更新
@@ -120,18 +120,18 @@ sealed interface VehicleCommand {
     }
 }
 
-enum class Zone(val label: String) { DRIVER("主驾"), PASSENGER("副驾") }
+enum class Zone(val label: String) { DRIVER("Driver"), PASSENGER("Passenger") }
 
 /** 可开合的玻璃部件。 */
 enum class GlassZone(val label: String) {
-    WINDOW_FL("左前窗"), WINDOW_FR("右前窗"), WINDOW_RL("左后窗"), WINDOW_RR("右后窗"),
-    SUNROOF("天窗"), SUNSHADE("遮阳帘"),
+    WINDOW_FL("Front left window"), WINDOW_FR("Front right window"), WINDOW_RL("Rear left window"), WINDOW_RR("Rear right window"),
+    SUNROOF("Sunroof"), SUNSHADE("Sunshade"),
 }
 
 enum class QuickAction(val label: String) {
-    PURIFY("一键净化"),
-    QUICK_COOL("快速降温"),
-    FRONT_DEFROST("前挡除霜"),
+    PURIFY("Purify air"),
+    QUICK_COOL("Quick cool"),
+    FRONT_DEFROST("Front defrost"),
 }
 
 /** 数据源执行指令的结果（只代表“下发”结果，是否真正生效由 Repository 回读确认）。 */
