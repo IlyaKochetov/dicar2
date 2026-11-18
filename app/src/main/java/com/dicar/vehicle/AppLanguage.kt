@@ -20,7 +20,9 @@ object AppLanguage {
     fun wrap(context: Context): Context {
         val language = selected(context)
         if (language == SYSTEM) return context
-        val config = Configuration(context.resources.configuration)
+        // Override only the locale so system configuration changes (including night mode)
+        // continue to propagate to the activity.
+        val config = Configuration()
         config.setLocales(LocaleList(Locale.forLanguageTag(language)))
         return context.createConfigurationContext(config)
     }
