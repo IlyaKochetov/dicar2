@@ -3,6 +3,7 @@ package com.dicar.vehicle.data.source.bydauto
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.dicar.vehicle.R
 import com.dicar.vehicle.data.source.bydauto.BydDevice.Companion.unwrap
 import java.io.File
 import java.lang.reflect.Modifier
@@ -33,7 +34,7 @@ class BydAutoProbe(
 
     fun run(): Result {
         val sb = StringBuilder()
-        sb.appendLine("# BYDAuto 接口探测报告")
+        sb.appendLine(context.getString(R.string.probe_title))
         sb.appendLine("time      : ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
         sb.appendLine("model     : ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
         sb.appendLine("android   : ${Build.VERSION.RELEASE} / SDK ${Build.VERSION.SDK_INT}")
@@ -45,14 +46,14 @@ class BydAutoProbe(
         val classNames = (scanned + BydApiMap.KNOWN_DEVICE_CLASSES)
             .filter { it.startsWith(PACKAGE_PREFIX) && '$' !in it }
             .toSortedSet()
-        sb.appendLine("共 ${classNames.size} 个候选类（dex 扫描 ${scanned.size} + 已知列表）")
+        sb.appendLine(context.getString(R.string.probe_classes, classNames.size, scanned.size))
         sb.appendLine()
 
         for (name in classNames) {
             try {
                 dumpClass(name, sb)
             } catch (e: Throwable) {
-                sb.appendLine("## $name\n  !! dump failed: ${unwrap(e)}\n")
+                sb.appendLine(context.getString(R.string.probe_dump_failed, name, unwrap(e)))
             }
         }
 
@@ -73,7 +74,7 @@ class BydAutoProbe(
         val cls = try {
             Class.forName(name)
         } catch (e: Throwable) {
-            sb.appendLine("## $name\n  (类不存在: ${e.javaClass.simpleName})\n")
+            sb.appendLine(context.getString(R.string.probe_class_missing, name, e.javaClass.simpleName))
             return
         }
         sb.appendLine("## $name")
@@ -85,7 +86,7 @@ class BydAutoProbe(
                 (it.type.isPrimitive || it.type == String::class.java)
         }
         if (constants.isNotEmpty()) {
-            sb.appendLine("  [常量]")
+            sb.appendLine(context.getString(R.string.probe_constants))
             constants.sortedBy { it.name }.forEach { f ->
                 val value = runCatching { f.get(null) }.getOrElse { "?" }
                 sb.appendLine("    ${f.name} = $value")
@@ -95,7 +96,7 @@ class BydAutoProbe(
         // 方法签名
         val methods = cls.declaredMethods.filter { Modifier.isPublic(it.modifiers) }.sortedBy { it.name }
         if (methods.isNotEmpty()) {
-            sb.appendLine("  [方法]")
+            sb.appendLine(context.getString(R.string.probe_methods))
             methods.forEach { m ->
                 val static = if (Modifier.isStatic(m.modifiers)) "static " else ""
                 val params = m.parameterTypes.joinToString(", ") { it.simpleName }
@@ -110,9 +111,9 @@ class BydAutoProbe(
             val device = if (access == null) BydDevice(context, name) else null
             val instance = device?.obtain()
             if (access == null && instance == null) {
-                sb.appendLine("  [实例] getInstance 失败（权限不足或服务未就绪，见 logcat BydDevice）")
+                sb.appendLine(context.getString(R.string.probe_instance_failed))
             } else {
-                sb.appendLine("  [当前值]" + if (access != null) "（经${access.label}通道）" else "")
+                sb.appendLine(context.getString(R.string.probe_values) + if (access != null) context.getString(R.string.probe_access, context.getString(if (access is AdbBydAccess) R.string.probe_access_adb else R.string.probe_access_process)) else "")
                 cls.methods
                     .filter {
                         !Modifier.isStatic(it.modifiers) && it.parameterTypes.isEmpty() &&
@@ -124,7 +125,7 @@ class BydAutoProbe(
                         val value = if (access != null) {
                             when (val r = access.readGetter(name, m.name, IntArray(0))) {
                                 is BydDevice.CallResult.Value -> render(r.value)
-                                BydDevice.CallResult.Missing -> "(接口缺失)"
+                                BydDevice.CallResult.Missing -> context.getString(R.string.probe_missing)
                                 is BydDevice.CallResult.Error -> "!! ${r.error.javaClass.simpleName}: ${r.error.message}"
                             }
                         } else {
@@ -164,22 +165,22 @@ class BydAutoProbe(
 
         val found = sortedSetOf<String>()
         var dexTotal = 0
-        sb.appendLine("[dex 扫描] ${jars.size} 个 jar")
+        sb.appendLine(context.getString(R.string.probe_jars, jars.size))
         for (path in jars) {
             val scan = try {
                 scanJar(File(path))
             } catch (e: Throwable) {
-                sb.appendLine("  $path : 失败 ${e.javaClass.simpleName}")
+                sb.appendLine(context.getString(R.string.probe_scan_failed, path, e.javaClass.simpleName))
                 continue
             }
             dexTotal += scan.dexCount
             // 只列出含 dex 的 jar；boot image 预编译后很多 jar 里没有 dex，这是正常的
             if (scan.dexCount > 0) {
-                sb.appendLine("  $path : ${scan.dexCount} dex / ${scan.typeCount} 类型 / ${scan.hits.size} 个 bydauto 类")
+                sb.appendLine(context.getString(R.string.probe_scan_result, path, scan.dexCount, scan.typeCount, scan.hits.size))
             }
             found += scan.hits
         }
-        if (dexTotal == 0) sb.appendLine("  （所有 jar 均不含 dex，无法扫描，只能使用已知类列表）")
+        if (dexTotal == 0) sb.appendLine(context.getString(R.string.probe_no_dex))
         sb.appendLine()
         return found
     }

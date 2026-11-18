@@ -1,5 +1,7 @@
 package com.dicar.vehicle.data.update
 
+import android.content.Context
+import com.dicar.vehicle.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -43,6 +45,7 @@ sealed interface UpdateState {
  * GitHub 那边能看到的仅是你的 IP 和 User-Agent。
  */
 class UpdateChecker(
+    private val context: Context,
     private val currentVersion: String,
     private val endpoint: String = LATEST_RELEASE_API,
     private val fallbackEndpoint: String = LATEST_RELEASE_PAGE,
@@ -50,11 +53,11 @@ class UpdateChecker(
 
     suspend fun check(): UpdateState = withContext(Dispatchers.IO) {
         val release = try {
-            ReleaseParser.parse(fetch(endpoint)) ?: return@withContext fallback("Could not parse release information")
+            ReleaseParser.parse(fetch(endpoint)) ?: return@withContext fallback(context.getString(R.string.update_parse))
         } catch (e: IOException) {
-            return@withContext fallback("Network unavailable: ${e.message ?: "connection failed"}")
+            return@withContext fallback(context.getString(R.string.update_network, e.message ?: context.getString(R.string.update_connection)))
         } catch (e: HttpStatus) {
-            return@withContext fallback(e.describe())
+            return@withContext fallback(e.describe(context))
         }
         decide(release)
     }
@@ -81,7 +84,7 @@ class UpdateChecker(
         return UpdateState.Available(
             ReleaseInfo(
                 version = version,
-                title = "Version $version",
+                title = context.getString(R.string.update_version, version),
                 notes = "",
                 pageUrl = "$RELEASES_PAGE/tag/$tag",
                 apkUrl = null,
@@ -121,16 +124,19 @@ class UpdateChecker(
         val rateResetEpoch: Long?,
         val serverMessage: String?,
     ) : Exception() {
-        fun describe(): String = when {
-            rateRemaining == 0 -> "GitHub 匿名接口每小时 $ANON_QUOTA 次已用完${resetHint()}"
-            code == 404 -> "No releases have been published yet"
-            code == 403 || code == 429 -> "GitHub 拒绝了请求（$code${serverMessage?.let { "：$it" }.orEmpty()}）"
-            else -> "服务器返回 $code${serverMessage?.let { "：$it" }.orEmpty()}"
+        fun describe(context: Context): String {
+            val detail = serverMessage?.let { context.getString(R.string.update_detail, it) }.orEmpty()
+            return when {
+                rateRemaining == 0 -> context.resources.getQuantityString(R.plurals.update_quota, ANON_QUOTA, ANON_QUOTA, resetHint(context))
+                code == 404 -> context.getString(R.string.update_none)
+                code == 403 || code == 429 -> context.getString(R.string.update_rejected, code, detail)
+                else -> context.getString(R.string.update_server, code, detail)
+            }
         }
 
-        private fun resetHint(): String = rateResetEpoch
-            ?.let { "，${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it * 1000))} 后恢复" }
-            ?: "，过一会儿再试"
+        private fun resetHint(context: Context): String = rateResetEpoch
+            ?.let { context.getString(R.string.update_reset, SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it * 1000))) }
+            ?: context.getString(R.string.update_retry)
     }
 
     private fun fetch(url: String): String {

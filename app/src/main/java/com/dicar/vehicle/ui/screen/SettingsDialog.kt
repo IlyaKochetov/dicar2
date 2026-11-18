@@ -13,7 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import android.app.Activity
 import android.content.Intent
+import com.dicar.vehicle.AppLanguage
 import android.net.Uri
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +31,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.localizedLabel
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -73,14 +78,33 @@ fun SettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-        title = { Text("Settings") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.text_done)) } },
+        title = { Text(stringResource(R.string.text_settings)) },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("Data source", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleSmall)
+                listOf(
+                    AppLanguage.SYSTEM to stringResource(R.string.language_system),
+                    AppLanguage.ENGLISH to stringResource(R.string.language_english),
+                    AppLanguage.RUSSIAN to stringResource(R.string.language_russian),
+                ).forEach { (language, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().selectable(
+                            selected = AppLanguage.selected(context) == language,
+                            onClick = { (context as? Activity)?.let { AppLanguage.select(it, language) } },
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = AppLanguage.selected(context) == language, onClick = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(label)
+                    }
+                }
+                HorizontalDivider()
+                Text(stringResource(R.string.text_data_source), style = MaterialTheme.typography.titleSmall)
                 SourceMode.entries.forEach { mode ->
                     Row(
                         Modifier
@@ -90,12 +114,12 @@ fun SettingsDialog(
                     ) {
                         RadioButton(selected = mode == sourceMode, onClick = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(mode.label)
+                        Text(mode.localizedLabel())
                     }
                 }
 
                 HorizontalDivider()
-                Text("Refresh interval: ${sliderValue.roundToLong()} ms", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.fmt_refresh, sliderValue.roundToLong()), style = MaterialTheme.typography.titleSmall)
                 Slider(
                     value = sliderValue,
                     onValueChange = { sliderValue = (it / 100f).roundToLong() * 100f },
@@ -105,7 +129,7 @@ fun SettingsDialog(
                 )
 
                 HorizontalDivider()
-                Text("Digital twin", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.text_digital_twin), style = MaterialTheme.typography.titleSmall)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -113,10 +137,9 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("3D vehicle model")
+                        Text(stringResource(R.string.text_3d_vehicle_model))
                         Text(
-                            "Drag to rotate and pinch to zoom. Continuous GPU usage may slow navigation;" +
-                                "when disabled, the default 2D top-down view is used.",
+                            stringResource(R.string.desc_3d),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -126,9 +149,9 @@ fun SettingsDialog(
                 }
 
                 HorizontalDivider()
-                Text("Floating overlay", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.text_floating_overlay), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Choose overlay content. Lower opacity blocks less of the view; changes apply immediately.",
+                    stringResource(R.string.text_choose_overlay_content_lower_opacity_blocks_less_of_the_view_changes_apply_immediately),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -141,11 +164,11 @@ fun SettingsDialog(
                     ) {
                         Checkbox(checked = block in floatingBlocks, onCheckedChange = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(block.label)
+                        Text(block.localizedLabel())
                     }
                 }
                 var alpha by remember(floatingAlpha) { mutableFloatStateOf(floatingAlpha) }
-                Text("Opacity: ${(alpha * 100).roundToLong()}%", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.fmt_opacity, (alpha * 100).roundToLong()), style = MaterialTheme.typography.bodyMedium)
                 Slider(
                     value = alpha,
                     onValueChange = { alpha = it },
@@ -154,8 +177,8 @@ fun SettingsDialog(
                 )
 
                 HorizontalDivider()
-                Text("About", style = MaterialTheme.typography.titleSmall)
-                MetricRow("Current version", BuildConfig.VERSION_NAME)
+                Text(stringResource(R.string.text_about), style = MaterialTheme.typography.titleSmall)
+                MetricRow(stringResource(R.string.text_current_version), BuildConfig.VERSION_NAME)
                 UpdateSection(
                     state = update,
                     autoCheck = autoCheckUpdate,
@@ -177,13 +200,12 @@ fun SettingsDialog(
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         )
                     }
-                }) { Text("Source code: $PROJECT_URL") }
+                }) { Text(stringResource(R.string.fmt_source_code, PROJECT_URL)) }
 
                 HorizontalDivider()
-                Text("Developer tools", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.text_developer_tools), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "List BYDAuto*Device methods and constants and read no-argument getters;" +
-                        "save the report for use with adb pull and BydApiMap.",
+                    stringResource(R.string.desc_probe),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -192,7 +214,7 @@ fun SettingsDialog(
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
                     }
-                    Text("Probe BYDAuto interfaces")
+                    Text(stringResource(R.string.text_probe_bydauto_interfaces))
                 }
             }
         },
@@ -204,12 +226,12 @@ fun ProbeResultDialog(probe: ProbeUiState, onDismiss: () -> Unit) {
     if (probe !is ProbeUiState.Done) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("BYDAuto probe results") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.text_close)) } },
+        title = { Text(stringResource(R.string.text_bydauto_probe_results)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    probe.filePath?.let { "Saved: $it" } ?: "Unable to save file; showing output below",
+                    probe.filePath?.let { stringResource(R.string.fmt_saved, it) } ?: stringResource(R.string.text_unable_to_save_file_showing_output_below),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 SelectionContainer {
@@ -247,11 +269,11 @@ private fun UpdateSection(
                 CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
             }
-            Text("Check for updates")
+            Text(stringResource(R.string.text_check_for_updates))
         }
         when (state) {
             is UpdateState.UpToDate -> Text(
-                "Up to date",
+                stringResource(R.string.text_up_to_date),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -274,7 +296,7 @@ private fun UpdateSection(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                "New version ${release.version}" + (release.publishedOn?.let { " ($it)" } ?: ""),
+                stringResource(R.string.fmt_new_version, release.version) + (release.publishedOn?.let { " ($it)" } ?: ""),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -288,7 +310,7 @@ private fun UpdateSection(
             // Explain why only a version number is available when the fallback is used.
             if (release.viaFallback) {
                 Text(
-                    "The GitHub API is unavailable. Only the version number could be retrieved; open the release page for notes and downloads.",
+                    stringResource(R.string.desc_release),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -296,9 +318,9 @@ private fun UpdateSection(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Do not install directly in the app: that requires REQUEST_INSTALL_PACKAGES.
                 // Open the release page so the user can download with the head-unit browser.
-                TextButton(onClick = { onOpen(release.pageUrl) }) { Text("View release") }
+                TextButton(onClick = { onOpen(release.pageUrl) }) { Text(stringResource(R.string.text_view_release)) }
                 release.apkUrl?.let { url ->
-                    TextButton(onClick = { onOpen(url) }) { Text("Download APK") }
+                    TextButton(onClick = { onOpen(url) }) { Text(stringResource(R.string.text_download_apk)) }
                 }
             }
         }
@@ -311,10 +333,9 @@ private fun UpdateSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Check on startup")
+            Text(stringResource(R.string.text_check_on_startup))
             Text(
-                "The update check is the app's only external network request. It sends one anonymous request" +
-                    "without any vehicle data. When disabled, it connects only when checked manually.",
+                stringResource(R.string.desc_update),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

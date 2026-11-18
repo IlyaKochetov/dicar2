@@ -10,6 +10,8 @@ import dadb.AdbShellStream
  * Shell v2 ([AdbShellStream]) separates stdout and stderr frames so warnings from the helper
  * or app_process do not mix with protocol lines assembled from stdout.
  */
+internal class HelperExitedException : IllegalStateException()
+
 class HelperSession(private val shell: AdbShellStream) {
 
     @Volatile
@@ -20,7 +22,7 @@ class HelperSession(private val shell: AdbShellStream) {
 
     fun request(line: String): String {
         writeLine(line)
-        return readLine() ?: throw IllegalStateException("辅助进程已退出")
+        return readLine() ?: throw HelperExitedException()
     }
 
     /**
@@ -33,7 +35,7 @@ class HelperSession(private val shell: AdbShellStream) {
             append("BEGIN ").append(lines.size).append('\n')
             lines.forEach { append(it).append('\n') }
         })
-        return List(lines.size) { readLine() ?: throw IllegalStateException("辅助进程已退出") }
+        return List(lines.size) { readLine() ?: throw HelperExitedException() }
     }
 
     private fun writeLine(line: String) {

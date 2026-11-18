@@ -82,14 +82,14 @@ class VehicleMonitorService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun summary(state: VehicleState): String {
-        val speed = Format.num(state.speed, unit = "km/h")
+        val speed = Format.num(state.speed, unit = getString(R.string.unit_speed))
         val soc = Format.num(state.soc, 1, "%")
         val ac = when (state.acOn) {
             null -> Format.NA
-            false -> "Off"
-            true -> "On " + Format.num(state.acTempDriver, 1, "℃")
+            false -> getString(R.string.ui_off)
+            true -> getString(R.string.notification_on, Format.num(state.acTempDriver, 1, getString(R.string.unit_celsius)))
         }
-        return "Speed $speed  |  SOC $soc  |  Climate $ac"
+        return getString(R.string.notification_summary, speed, soc, ac)
     }
 
     @SuppressLint("MissingPermission") // 已用 areNotificationsEnabled 判断
@@ -115,7 +115,7 @@ class VehicleMonitorService : Service() {
             )
         )
         .addAction(
-            0, "Stop monitoring",
+            0, getString(R.string.notification_stop),
             PendingIntent.getService(
                 this, 1,
                 Intent(this, VehicleMonitorService::class.java).setAction(ACTION_STOP),
@@ -125,8 +125,8 @@ class VehicleMonitorService : Service() {
         .build()
 
     private fun createChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, "Vehicle monitoring", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "Shown while collecting vehicle data in the background"
+        val channel = NotificationChannel(CHANNEL_ID, getString(R.string.notification_channel), NotificationManager.IMPORTANCE_LOW).apply {
+            description = getString(R.string.notification_description)
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)

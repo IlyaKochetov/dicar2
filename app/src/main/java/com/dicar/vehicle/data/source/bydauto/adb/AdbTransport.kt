@@ -2,6 +2,7 @@ package com.dicar.vehicle.data.source.bydauto.adb
 
 import android.content.Context
 import android.util.Log
+import com.dicar.vehicle.R
 import dadb.AdbKeyPair
 import dadb.Dadb
 import java.io.File
@@ -51,7 +52,7 @@ class AdbTransport(context: Context) {
             throw e
         } catch (e: Exception) {
             resetLocked() // Reset the broken stream and reconnect on the next poll.
-            throw AdbUnavailableException("与辅助进程通信失败：${e.message}", e)
+            throw AdbUnavailableException(appContext.getString(R.string.adb_comm_failed, if (e is HelperExitedException) appContext.getString(R.string.adb_helper_exited) else e.message.orEmpty()), e)
         }
     }
 
@@ -69,18 +70,18 @@ class AdbTransport(context: Context) {
             connection.openShell(cmd)
         } catch (e: Exception) {
             resetLocked()
-            throw AdbUnavailableException("连接车机调试失败（确认已开启无线调试并在车机上允许本机调试）：${e.message}", e)
+            throw AdbUnavailableException(appContext.getString(R.string.adb_connect_failed, e.message.orEmpty()), e)
         }
 
         val s = HelperSession(shell)
         val ready = try {
             s.readLine()
         } catch (e: Exception) {
-            s.close(); throw AdbUnavailableException("辅助进程无响应：${e.message}", e)
+            s.close(); throw AdbUnavailableException(appContext.getString(R.string.adb_helper_no_response, e.message.orEmpty()), e)
         }
         if (ready == null || !ready.startsWith("READY")) {
             s.close()
-            throw AdbUnavailableException("辅助进程启动失败：${ready ?: "无输出"}")
+            throw AdbUnavailableException(appContext.getString(R.string.adb_helper_start_failed, ready ?: appContext.getString(R.string.adb_no_output)))
         }
         Log.i(TAG, "helper ready: $ready")
         session = s
@@ -99,7 +100,7 @@ class AdbTransport(context: Context) {
         return try {
             Dadb.create(HOST, PORT, keyPair, connectTimeout = CONNECT_TIMEOUT_MS, socketTimeout = SOCKET_TIMEOUT_MS, keepAlive = true)
         } catch (e: Exception) {
-            throw AdbUnavailableException("无法创建车机调试连接：${e.message}", e)
+            throw AdbUnavailableException(appContext.getString(R.string.adb_create_failed, e.message.orEmpty()), e)
         }
     }
 

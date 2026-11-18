@@ -1,5 +1,7 @@
 package com.dicar.vehicle.data
 
+import android.content.Context
+import com.dicar.vehicle.R
 import android.os.SystemClock
 import android.util.Log
 import com.dicar.vehicle.data.model.CommandResult
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
  * Failures are reported through [events]. Internal state is confined to [dispatcher].
  */
 class VehicleRepository(
+    private val context: Context,
     private val settings: SettingsStore,
     sources: List<VehicleDataSource>,
 ) {
@@ -96,7 +99,7 @@ class VehicleRepository(
             } catch (e: Throwable) {
                 Log.w(TAG, "read failed on ${source.type}", e)
                 invalidateSource()
-                VehicleState(source = source.type, error = "读取失败：${e.message ?: e.javaClass.simpleName}", timestamp = now)
+                VehicleState(source = source.type, error = context.getString(R.string.error_read, e.message ?: e.javaClass.simpleName), timestamp = now)
             }
         }
         _state.value = reconcilePending(raw)
@@ -178,10 +181,10 @@ class VehicleRepository(
     )
 
     private fun noSourceMessage(): String = when (settings.sourceMode.value) {
-        SourceMode.AUTO -> "未检测到 BYDAuto 接口，迪加（127.0.0.1:8988）也无响应"
-        SourceMode.BYD_AUTO -> "当前系统不支持 BYDAuto 接口"
-        SourceMode.DI_PLUS -> "迪加（127.0.0.1:8988）无响应，请确认迪加已运行"
-        SourceMode.MOCK -> "模拟数据源不可用"
+        SourceMode.AUTO -> context.getString(R.string.source_auto_missing)
+        SourceMode.BYD_AUTO -> context.getString(R.string.source_byd_missing)
+        SourceMode.DI_PLUS -> context.getString(R.string.source_diplus_missing)
+        SourceMode.MOCK -> context.getString(R.string.source_mock_missing)
     }
 
     // ------------------------------------------------------------------
@@ -223,7 +226,7 @@ class VehicleRepository(
     private suspend fun dispatch(command: VehicleCommand) {
         val source = resolveSource()
         val result = if (source == null) {
-            CommandResult.Unsupported("无可用数据源")
+            CommandResult.Unsupported(context.getString(R.string.source_unavailable))
         } else {
             try {
                 source.execute(command)
@@ -242,7 +245,7 @@ class VehicleRepository(
         when (result) {
             CommandResult.Sent -> {
                 if (command.expected == null) {
-                    finish(command.key, "已下发：${command.label}")
+                    finish(command.key, context.getString(R.string.command_sent, context.commandLabel(command)))
                 } else {
                     entry.sent = true
                     entry.deadline = SystemClock.elapsedRealtime() + CONFIRM_TIMEOUT_MS
@@ -250,8 +253,8 @@ class VehicleRepository(
                     pollOnce()
                 }
             }
-            is CommandResult.Unsupported -> finish(command.key, "暂不支持：${command.label}（${result.reason}）")
-            is CommandResult.Failed -> finish(command.key, "控制失败：${command.label}（${result.reason}）")
+            is CommandResult.Unsupported -> finish(command.key, context.getString(R.string.command_unsupported, context.commandLabel(command), result.reason))
+            is CommandResult.Failed -> finish(command.key, context.getString(R.string.command_failed, context.commandLabel(command), result.reason))
         }
     }
 
@@ -281,11 +284,11 @@ class VehicleRepository(
                     iterator.remove()
                     sticky[command.key] = command
                     merged = command.applyTo(merged)
-                    _events.tryEmit("已下发：${command.label}（该项无法回读确认）")
+                    _events.tryEmit(context.getString(R.string.command_unconfirmed, context.commandLabel(command)))
                 }
                 now > entry.deadline -> {
                     iterator.remove()
-                    _events.tryEmit("未生效：${command.label}（车机状态未变化）")
+                    _events.tryEmit(context.getString(R.string.command_unchanged, context.commandLabel(command)))
                 }
                 else -> merged = command.applyTo(merged)
             }

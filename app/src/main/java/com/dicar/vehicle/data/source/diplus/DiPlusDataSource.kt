@@ -1,5 +1,8 @@
 package com.dicar.vehicle.data.source.diplus
 
+import android.content.Context
+import com.dicar.vehicle.R
+import com.dicar.vehicle.data.commandLabel
 import com.dicar.vehicle.data.model.AcCycleMode
 import com.dicar.vehicle.data.model.AcWindMode
 import com.dicar.vehicle.data.model.CommandResult
@@ -30,6 +33,7 @@ import kotlin.math.roundToInt
  * Parameter names and encodings come from BYDMate and its DiPlus research (D+ 1.3.8); verify [?] estimates in DiPlus.
  */
 class DiPlusDataSource(
+    private val context: Context,
     private val baseUrl: String = "http://127.0.0.1:8988",
 ) : VehicleDataSource {
 
@@ -115,9 +119,9 @@ class DiPlusDataSource(
     override suspend fun execute(command: VehicleCommand): CommandResult {
         val cmd: String = when (command) {
             is VehicleCommand.AcPower -> if (command.on) "开空调" /*[?]*/ else "关空调"
-            is VehicleCommand.AcAuto -> if (command.on) "自动空调" else return unsupported("退出自动")
+            is VehicleCommand.AcAuto -> if (command.on) "自动空调" else return unsupported(context.getString(R.string.diplus_exit_auto))
             is VehicleCommand.AcTemperature -> {
-                if (command.zone == Zone.PASSENGER) return unsupported("副驾温度单独设置")
+                if (command.zone == Zone.PASSENGER) return unsupported(context.getString(R.string.diplus_passenger_temp))
                 "设置温度${command.celsius.roundToInt()}"
             }
             is VehicleCommand.AcFanLevel -> "设置风速${command.level}"
@@ -129,8 +133,8 @@ class DiPlusDataSource(
                 AcWindMode.DEFROST -> "空调除霜"
             }
             is VehicleCommand.AcCycle -> if (command.mode == AcCycleMode.INNER) "内循环" else "外循环"
-            is VehicleCommand.SeatHeat -> seatCommand(command.seat, "加热", command.level) ?: return unsupported("3 档（迪加只有 1-2 档）")
-            is VehicleCommand.SeatVent -> seatCommand(command.seat, "通风", command.level) ?: return unsupported("3 档（迪加只有 1-2 档）")
+            is VehicleCommand.SeatHeat -> seatCommand(command.seat, "加热", command.level) ?: return unsupported(context.getString(R.string.diplus_seat_level))
+            is VehicleCommand.SeatVent -> seatCommand(command.seat, "通风", command.level) ?: return unsupported(context.getString(R.string.diplus_seat_level))
             // DiPlus glass commands use Chinese macros such as 「主驾打开100」 and 「天窗打开30」.
             is VehicleCommand.Glass -> when (command.zone) {
                 GlassZone.WINDOW_FL -> "主驾${glassSuffix(command.open)}"
@@ -143,15 +147,15 @@ class DiPlusDataSource(
 
             is VehicleCommand.Quick -> when (command.action) {
                 QuickAction.FRONT_DEFROST -> "吹前挡"
-                QuickAction.QUICK_COOL, QuickAction.PURIFY -> return unsupported(command.action.label)
+                QuickAction.QUICK_COOL, QuickAction.PURIFY -> return unsupported(context.commandLabel(command))
             }
         }
         return try {
             val body = httpGet("$baseUrl/api/sendCmd?cmd=" + URLEncoder.encode(CMD_PREFIX + cmd, "UTF-8"))
             if (JSONObject(body).optBoolean("success")) CommandResult.Sent
-            else CommandResult.Failed("DiPlus command failed")
+            else CommandResult.Failed(context.getString(R.string.diplus_failed))
         } catch (e: IOException) {
-            CommandResult.Failed("DiPlus did not respond: ${e.message}")
+            CommandResult.Failed(context.getString(R.string.diplus_no_response, e.message.orEmpty()))
         }
     }
 
@@ -167,13 +171,13 @@ class DiPlusDataSource(
     /** DiPlus opening macros: 「打开100」 = fully open, 「打开0」 = closed. */
     private fun glassSuffix(open: Boolean) = if (open) "打开100" else "打开0"
 
-    private fun unsupported(what: String) = CommandResult.Unsupported("DiPlus does not support $what")
+    private fun unsupported(what: String) = CommandResult.Unsupported(context.getString(R.string.diplus_unsupported, what))
 
     /** Call getDiPars and parse aliases to value strings; throw IOException on connection failure for repository fallback. */
     private fun query(template: String): Map<String, String> {
         val body = httpGet("$baseUrl/api/getDiPars?text=" + URLEncoder.encode(template, "UTF-8"))
         val json = JSONObject(body)
-        if (!json.optBoolean("success")) throw IOException("迪加 getDiPars 返回失败")
+        if (!json.optBoolean("success")) throw IOException(context.getString(R.string.diplus_read_failed))
         return parseVal(json.optString("val"))
     }
 
@@ -183,7 +187,7 @@ class DiPlusDataSource(
             conn.connectTimeout = CONNECT_TIMEOUT_MS
             conn.readTimeout = READ_TIMEOUT_MS
             conn.useCaches = false
-            if (conn.responseCode != HttpURLConnection.HTTP_OK) throw IOException("HTTP ${conn.responseCode}")
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) throw IOException(context.getString(R.string.error_http, conn.responseCode))
             return conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             conn.disconnect()

@@ -20,6 +20,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.displayOnOff
+import com.dicar.vehicle.ui.displayLevel
+import com.dicar.vehicle.ui.localizedLabel
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -56,7 +61,7 @@ fun AcPanel(
     modifier: Modifier = Modifier,
 ) {
     DataCard(
-        title = "Climate controls",
+        title = stringResource(R.string.ui_climate_controls),
         modifier = modifier,
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -64,47 +69,47 @@ fun AcPanel(
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(Format.onOff(state.acOn), style = MaterialTheme.typography.labelLarge)
+                Text(displayOnOff(state.acOn), style = MaterialTheme.typography.labelLarge)
                 Spacer(Modifier.width(8.dp))
                 Switch(checked = state.acOn == true, onCheckedChange = { actions.toggleAc() })
             }
         },
     ) {
         MetricPair(
-            "Cabin temperature", Format.num(state.insideTemp, 1, "℃"),
-            "Outside temperature", Format.num(state.outsideTemp, 1, "℃"),
+            stringResource(R.string.ui_cabin_temperature), Format.num(state.insideTemp, 1, stringResource(R.string.unit_celsius)),
+            stringResource(R.string.ui_outside_temperature), Format.num(state.outsideTemp, 1, stringResource(R.string.unit_celsius)),
         )
         HorizontalDivider()
 
         Stepper(
-            label = "Driver temperature",
-            value = Format.num(state.acTempDriver, 1, "℃"),
+            label = stringResource(R.string.ui_driver_temperature),
+            value = Format.num(state.acTempDriver, 1, stringResource(R.string.unit_celsius)),
             pending = "ac_temp_${Zone.DRIVER}" in pending,
             onMinus = { actions.adjustTemp(Zone.DRIVER, -tempStep) },
             onPlus = { actions.adjustTemp(Zone.DRIVER, tempStep) },
         )
         Stepper(
-            label = "Passenger temperature",
-            value = Format.num(state.acTempPassenger, 1, "℃"),
+            label = stringResource(R.string.ui_passenger_temperature),
+            value = Format.num(state.acTempPassenger, 1, stringResource(R.string.unit_celsius)),
             pending = "ac_temp_${Zone.PASSENGER}" in pending,
             onMinus = { actions.adjustTemp(Zone.PASSENGER, -tempStep) },
             onPlus = { actions.adjustTemp(Zone.PASSENGER, tempStep) },
         )
         Stepper(
-            label = "Fan speed",
-            value = Format.level(state.acFanLevel),
+            label = stringResource(R.string.ui_fan_speed),
+            value = displayLevel(state.acFanLevel),
             pending = "ac_fan" in pending,
             onMinus = { actions.adjustFan(-1) },
             onPlus = { actions.adjustFan(1) },
         )
 
-        Label("Airflow direction")
+        Label(stringResource(R.string.ui_airflow_direction))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AcWindMode.entries.forEach { mode ->
                 FilterChip(
                     selected = state.acWindMode == mode,
                     onClick = { actions.setWindMode(mode) },
-                    label = { Text(mode.label) },
+                    label = { Text(mode.localizedLabel()) },
                 )
             }
         }
@@ -118,31 +123,31 @@ fun AcPanel(
             FilterChip(
                 selected = state.acCycle == AcCycleMode.INNER,
                 onClick = { actions.toggleCycle() },
-                label = { Text(state.acCycle?.label ?: "Circulation ${Format.NA}") },
+                label = { Text(state.acCycle?.localizedLabel() ?: stringResource(R.string.fmt_circulation, Format.NA)) },
             )
         }
 
         HorizontalDivider()
-        Label("Seats (tap to cycle Off→1→…→${state.seatMaxLevel})")
+        Label(stringResource(R.string.fmt_seats, state.seatMaxLevel))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SeatButton("Driver heating", state.seatHeatDriver, "seat_heat_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
+            SeatButton(stringResource(R.string.ui_driver_heating), state.seatHeatDriver, "seat_heat_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatHeat(Zone.DRIVER)
             }
-            SeatButton("Passenger heating", state.seatHeatPassenger, "seat_heat_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
+            SeatButton(stringResource(R.string.ui_passenger_heating), state.seatHeatPassenger, "seat_heat_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatHeat(Zone.PASSENGER)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SeatButton("Driver ventilation", state.seatVentDriver, "seat_vent_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
+            SeatButton(stringResource(R.string.ui_driver_ventilation), state.seatVentDriver, "seat_vent_${Zone.DRIVER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatVent(Zone.DRIVER)
             }
-            SeatButton("Passenger ventilation", state.seatVentPassenger, "seat_vent_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
+            SeatButton(stringResource(R.string.ui_passenger_ventilation), state.seatVentPassenger, "seat_vent_${Zone.PASSENGER}" in pending, Modifier.weight(1f)) {
                 actions.cycleSeatVent(Zone.PASSENGER)
             }
         }
 
         HorizontalDivider()
-        Label("Windows / sunroof (vehicle parts move; check surroundings)")
+        Label(stringResource(R.string.ui_windows_sunroof_vehicle_parts_move_check_surroundings))
         GlassRow(GlassZone.WINDOW_FL, state.windowPercent.fl, pending, actions, Modifier.weight(1f)) {
             GlassRowItem(GlassZone.WINDOW_FR, state.windowPercent.fr, pending, actions)
         }
@@ -154,7 +159,7 @@ fun AcPanel(
         }
 
         HorizontalDivider()
-        Label("Quick actions")
+        Label(stringResource(R.string.ui_quick_actions))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickAction.entries.forEach { action ->
                 OutlinedButton(onClick = { actions.quick(action) }) {
@@ -162,7 +167,7 @@ fun AcPanel(
                         CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(6.dp))
                     }
-                    Text(action.label)
+                    Text(action.localizedLabel())
                 }
             }
         }
@@ -177,7 +182,7 @@ private fun SeatButton(label: String, level: Int?, pending: Boolean, modifier: M
         onClick = onClick,
         modifier = modifier,
         label = {
-            Text("$label  ${Format.level(level)}")
+            Text("$label  ${displayLevel(level)}")
             if (pending) {
                 Spacer(Modifier.width(6.dp))
                 CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
@@ -212,7 +217,7 @@ private fun GlassControl(zone: GlassZone, percent: Int?, pending: Set<String>, a
     val busy = "glass_$zone" in pending
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(zone.label, style = MaterialTheme.typography.bodyMedium)
+            Text(zone.localizedLabel(), style = MaterialTheme.typography.bodyMedium)
             Text(
                 Format.num(percent, unit = "%"),
                 style = MaterialTheme.typography.labelMedium,
@@ -224,11 +229,11 @@ private fun GlassControl(zone: GlassZone, percent: Int?, pending: Set<String>, a
             Spacer(Modifier.width(6.dp))
         }
         OutlinedButton(onClick = { actions.glass(zone, true) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text("On")
+            Text(stringResource(R.string.ui_on))
         }
         Spacer(Modifier.width(6.dp))
         OutlinedButton(onClick = { actions.glass(zone, false) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text("Off")
+            Text(stringResource(R.string.ui_off))
         }
     }
 }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -67,7 +69,7 @@ fun ChartLegend(
             Box(Modifier.size(width = 12.dp, height = 3.dp).background(s.color, CircleShape))
             val last = s.points.lastOrNull { it != null }
             Text(
-                if (showValue) "${s.name} ${Format.num(last, if (s.unit == "kW") 1 else 0, s.unit)}" else s.name,
+                if (showValue) "${s.name} ${Format.num(last, if (s.unit == stringResource(R.string.unit_power)) 1 else 0, s.unit)}" else s.name,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

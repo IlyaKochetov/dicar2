@@ -16,6 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -94,7 +96,7 @@ fun FloatingContent(
                         color = if (state.speed == null) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        " km/h",
+                        " " + stringResource(R.string.unit_speed),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 6.dp),
@@ -113,16 +115,16 @@ fun FloatingContent(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ArcGauge(
                         value = state.displayRpm?.toFloat(), min = 0f, max = 12000f,
-                        label = "RPM", unit = "rpm", modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.unit_label_rpm), unit = stringResource(R.string.unit_rpm), modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.tertiary,
                     )
                     ArcGauge(
                         value = state.batteryPower ?: state.power, min = -100f, max = 200f, zeroAt = 0f,
-                        label = "Power", unit = "kW", decimals = 1, modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.text_power), unit = stringResource(R.string.unit_power), decimals = 1, modifier = Modifier.weight(1f),
                     )
                     ArcGauge(
                         value = state.soc, min = 0f, max = 100f,
-                        label = "Battery", unit = "%", decimals = 0, modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.text_battery), unit = "%", decimals = 0, modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -131,10 +133,10 @@ fun FloatingContent(
             if (FloatingBlock.CHART in blocks) {
                 HistoryChart(
                     series = buildList {
-                        add(ChartSeries("Speed", "km/h", MaterialTheme.colorScheme.primary, history.map { it.speed }))
-                        add(ChartSeries("Power", "kW", MaterialTheme.colorScheme.tertiary, history.map { it.power }, baseline = 0f))
+                        add(ChartSeries(stringResource(R.string.text_speed), stringResource(R.string.unit_speed), MaterialTheme.colorScheme.primary, history.map { it.speed }))
+                        add(ChartSeries(stringResource(R.string.text_power), stringResource(R.string.unit_power), MaterialTheme.colorScheme.tertiary, history.map { it.power }, baseline = 0f))
                         if (history.any { it.engineRpm != null }) {
-                            add(ChartSeries("Engine", "rpm", MaterialTheme.colorScheme.error, history.map { it.engineRpm }, baseline = 0f))
+                            add(ChartSeries(stringResource(R.string.text_engine), stringResource(R.string.unit_rpm), MaterialTheme.colorScheme.error, history.map { it.engineRpm }, baseline = 0f))
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -152,10 +154,10 @@ fun FloatingContent(
             }
 
             if (FloatingBlock.DETAILS in blocks) {
-                MetricRow("Battery", Format.num(state.soc, 1, "%"))
-                MetricRow("Range", Format.num(state.remainRangeElec, unit = "km"))
-                MetricRow("Inside / outside", "${Format.num(state.insideTemp, 1)} / ${Format.num(state.outsideTemp, 1, "℃")}")
-                MetricRow("Battery temperature", Format.num(state.batteryTempMax, 1, "℃"))
+                MetricRow(stringResource(R.string.text_battery), Format.num(state.soc, 1, "%"))
+                MetricRow(stringResource(R.string.text_range), Format.num(state.remainRangeElec, unit = stringResource(R.string.unit_km)))
+                MetricRow(stringResource(R.string.text_inside_outside), "${Format.num(state.insideTemp, 1)} / ${Format.num(state.outsideTemp, 1, stringResource(R.string.unit_celsius))}")
+                MetricRow(stringResource(R.string.text_battery_temperature), Format.num(state.batteryTempMax, 1, stringResource(R.string.unit_celsius)))
             }
         }
     }

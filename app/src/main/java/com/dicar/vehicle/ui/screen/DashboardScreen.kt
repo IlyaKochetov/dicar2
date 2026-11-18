@@ -31,6 +31,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.localizedVehicleValue
+import com.dicar.vehicle.ui.localizedLabel
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -215,7 +219,7 @@ private fun SideRail(
                 selected = tab == item,
                 onClick = { onTab(item) },
                 icon = { Text(item.glyph, fontSize = 20.sp) },
-                label = { Text(item.label) },
+                label = { Text(item.localizedLabel()) },
                 colors = railColors,
             )
         }
@@ -224,14 +228,14 @@ private fun SideRail(
             selected = floatingOn,
             onClick = onToggleFloating,
             icon = { Text("◳", fontSize = 20.sp) },
-            label = { Text("Overlay") },
+            label = { Text(stringResource(R.string.text_overlay)) },
             colors = railColors,
         )
         NavigationRailItem(
             selected = false,
             onClick = onSettings,
             icon = { Text("⚙", fontSize = 20.sp) },
-            label = { Text("Settings") },
+            label = { Text(stringResource(R.string.text_settings)) },
             colors = railColors,
         )
         Spacer(Modifier.height(12.dp))
@@ -273,7 +277,7 @@ private fun StatusStrip(
                             activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             activeBorderColor = MaterialTheme.colorScheme.primary,
                         ),
-                    ) { Text(item.label, maxLines = 1) }
+                    ) { Text(item.localizedLabel(), maxLines = 1) }
                 }
             }
         }
@@ -290,7 +294,7 @@ private fun StatusStrip(
         )
         SourceChip(state, intervalMs)
         Text(
-            "Outside ${Format.num(state.outsideTemp, 0, "℃")}",
+            stringResource(R.string.fmt_outside, Format.num(state.outsideTemp, 0, stringResource(R.string.unit_celsius))),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -303,7 +307,7 @@ private fun StatusStrip(
         )
         if (compact) return@Row
         TextButton(onClick = onToggleFloating) {
-            Text(if (floatingOn) "Close overlay" else "Overlay", maxLines = 1)
+            Text(if (floatingOn) stringResource(R.string.text_close_overlay) else stringResource(R.string.text_overlay), maxLines = 1)
         }
         TextButton(onClick = onSettings) { Text("⚙", maxLines = 1) }
     }
@@ -315,17 +319,18 @@ private fun powertrainStatus(state: VehicleState): Pair<String, androidx.compose
     val scheme = MaterialTheme.colorScheme
     val motor = state.displayRpm
     return when {
-        state.engineRpm != null && state.engineRpm > ENGINE_IDLE_RPM -> "Engine running" to scheme.primary
-        state.engineRpm != null -> "Engine stopped" to scheme.outline
-        motor != null && kotlin.math.abs(motor) > MOTOR_IDLE_RPM -> "Motor driving" to scheme.secondary
-        motor != null -> "Motor idle" to scheme.outline
-        else -> "Powertrain ${Format.NA}" to scheme.outline
+        state.engineRpm != null && state.engineRpm > ENGINE_IDLE_RPM -> stringResource(R.string.text_engine_running) to scheme.primary
+        state.engineRpm != null -> stringResource(R.string.text_engine_stopped) to scheme.outline
+        motor != null && kotlin.math.abs(motor) > MOTOR_IDLE_RPM -> stringResource(R.string.text_motor_driving) to scheme.secondary
+        motor != null -> stringResource(R.string.text_motor_idle) to scheme.outline
+        else -> stringResource(R.string.fmt_powertrain, Format.NA) to scheme.outline
     }
 }
 
 /** Mode string such as HEV · Eco; show N/A if neither value is available. */
+@Composable
 private fun modeSummary(state: VehicleState): String =
-    listOfNotNull(state.workMode, state.driveMode)
+    listOfNotNull(localizedVehicleValue(state.workMode), localizedVehicleValue(state.driveMode))
         .filter { it.isNotBlank() }
         .joinToString(" · ")
         .ifEmpty { Format.NA }
@@ -349,7 +354,7 @@ private fun nowHhMm(): String = SimpleDateFormat("HH:mm", Locale.getDefault()).f
 private fun SourceChip(state: VehicleState, intervalMs: Long) {
     val ok = state.source != null && state.error == null
     Text(
-        text = (state.source?.label ?: "No data source") + " · ${intervalMs}ms",
+        text = stringResource(R.string.source_interval, state.source?.localizedLabel() ?: stringResource(R.string.text_no_data_source), intervalMs),
         style = MaterialTheme.typography.labelMedium,
         maxLines = 1,
         color = if (ok) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
@@ -368,7 +373,7 @@ private const val MOTOR_IDLE_RPM = 50
 @Composable
 private fun ErrorBanner(message: String) {
     Text(
-        text = "Unsupported / data unavailable: $message",
+        text = stringResource(R.string.fmt_unavailable, message),
         color = MaterialTheme.colorScheme.onErrorContainer,
         style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier

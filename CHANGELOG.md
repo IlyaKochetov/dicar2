@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1
+
+- Add Russian localization and a language selector.
+- Shorten Russian card labels and allow metric labels to wrap.
+- Enable Android resources for unit tests to support Compose Preview.
+
 ## 1.0
 
 - Present the dashboard, vehicle controls, floating window, settings, notifications, and hardware information in English.

@@ -84,6 +84,12 @@ keyPassword=YOUR_KEY_PASSWORD
 
 Do not commit passwords or keystores.
 
+## Localization
+
+Version 1.1 adds Russian labels and more compact card text. Choose the system language, English, or Russian in Settings → Language; the choice is saved on the device. The default UI strings are in `app/src/main/res/values/strings.xml`. To add a language, create a locale-qualified resource directory such as `values-fr`, copy the string and plural resource names, and translate their values. Keep positional placeholders such as `%1$s` and `%2$d` intact; Android falls back to the default resources for missing translations. Test the app with the device language set to the new locale and select Settings → Mock data for testing without a vehicle.
+
+Vehicle protocol strings and values supplied by the head unit are not translations. Hardware reports retain their original collector labels so identifier redaction and shared diagnostics remain consistent; the hardware screen resolves known labels for display and search.
+
 ## Install
 
 If an APK has been published, get it from [this fork's Releases](https://github.com/IlyaKochetov/dicar2/releases), or build it from source. A release may not be available yet.

@@ -15,6 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.localizedVehicleValue
+import com.dicar.vehicle.ui.localizedEnergyFlow
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -85,16 +89,16 @@ fun TwinPane(
 @Composable
 private fun RpmCard(state: VehicleState, modifier: Modifier = Modifier) {
     val isEngine = state.engineRpm != null
-    DataCard(title = state.displayRpmLabel, modifier = modifier) {
+    DataCard(title = stringResource(if (state.engineRpm != null) R.string.rpm_engine else R.string.rpm_motor), modifier = modifier) {
         DialGauge(
             value = state.displayRpm?.toFloat(),
             max = if (isEngine) ENGINE_MAX_RPM else MOTOR_MAX_RPM,
-            unit = "rpm",
+            unit = stringResource(R.string.unit_rpm),
             redlineFrom = if (isEngine) ENGINE_REDLINE_RPM else null,
             modifier = Modifier.fillMaxWidth().weight(1f),
         )
         Text(
-            text = state.energyFlow ?: Format.text(state.workMode),
+            text = localizedEnergyFlow(state.energyFlow) ?: Format.text(localizedVehicleValue(state.workMode)),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -106,7 +110,7 @@ private fun RpmCard(state: VehicleState, modifier: Modifier = Modifier) {
 @Composable
 private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        HeroNumber(state.speed, "km/h", size = 64.sp)
+        HeroNumber(state.speed, stringResource(R.string.unit_speed), size = 64.sp)
         Spacer(Modifier.height(4.dp))
         val carModifier = Modifier.fillMaxWidth().weight(1f)
         if (use3d) Car3dView(state, carModifier) else CarDiagram(state, carModifier)
@@ -118,24 +122,24 @@ private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier 
 private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val power = state.batteryPower ?: state.power
-    DataCard(title = "Drive power", modifier = modifier) {
-        HeroNumber(power, "kW", size = 40.sp, signed = true)
+    DataCard(title = stringResource(R.string.text_drive_power), modifier = modifier) {
+        HeroNumber(power, stringResource(R.string.unit_power), size = 40.sp, signed = true)
         SignedBar(power, maxPositive = MAX_DRIVE_KW, maxNegative = MAX_REGEN_KW)
-        SignedBarScale("Regen", "0", "Drive")
+        SignedBarScale(stringResource(R.string.text_regen), "0", stringResource(R.string.text_drive))
         Spacer(Modifier.height(2.dp))
-        LabeledBar("Battery", state.soc, scheme.secondary)
-        LabeledBar("Fuel", state.fuelPercent, scheme.tertiary)
+        LabeledBar(stringResource(R.string.text_battery), state.soc, scheme.secondary)
+        LabeledBar(stringResource(R.string.text_fuel), state.fuelPercent, scheme.tertiary)
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth()) {
             val style = MaterialTheme.typography.labelLarge
             Text(
-                "Electric ${Format.num(state.remainRangeElec, unit = "km")}",
+                stringResource(R.string.fmt_electric, Format.num(state.remainRangeElec, unit = stringResource(R.string.unit_km))),
                 style = style,
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             Text(
-                "Combined ${Format.num(combinedRange(state), unit = "km")}",
+                stringResource(R.string.fmt_combined, Format.num(combinedRange(state), unit = stringResource(R.string.unit_km))),
                 style = style,
                 color = scheme.onSurfaceVariant,
             )
@@ -161,16 +165,16 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
     // Plot available engine and motor RPM separately. A separate primary RPM line
     // would duplicate engine RPM when the engine is present.
     val series = buildList {
-        add(ChartSeries("Power", "kW", scheme.secondary, history.map { it.power }, baseline = 0f))
+        add(ChartSeries(stringResource(R.string.text_power), stringResource(R.string.unit_power), scheme.secondary, history.map { it.power }, baseline = 0f))
         if (history.any { it.engineRpm != null }) {
-            add(ChartSeries("Engine", "rpm", scheme.error, history.map { it.engineRpm }, baseline = 0f))
+            add(ChartSeries(stringResource(R.string.text_engine), stringResource(R.string.unit_rpm), scheme.error, history.map { it.engineRpm }, baseline = 0f))
         }
         if (history.any { it.motorRpm != null }) {
-            add(ChartSeries("Motor", "rpm", scheme.primary, history.map { it.motorRpm }, baseline = 0f))
+            add(ChartSeries(stringResource(R.string.text_motor), stringResource(R.string.unit_rpm), scheme.primary, history.map { it.motorRpm }, baseline = 0f))
         }
         // Fall back to primary RPM if neither separate RPM is available.
         if (size == 1 && history.any { it.rpm != null }) {
-            add(ChartSeries("RPM", "rpm", scheme.primary, history.map { it.rpm }, baseline = 0f))
+            add(ChartSeries(stringResource(R.string.unit_label_rpm), stringResource(R.string.unit_rpm), scheme.primary, history.map { it.rpm }, baseline = 0f))
         }
     }
     DataCard(title = null) {
@@ -198,36 +202,36 @@ private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistoryS
  * Parking radar summary, or null when inactive.
  * Returns text to alert status; levels within [RADAR_ALERT_LEVEL] trigger an alert.
  */
+@Composable
 private fun radarSummary(state: VehicleState): Pair<String, Boolean>? {
     val radar = state.radar
     if (!radar.hasAnyReading && radar.reverseSwitchOn != true) return null
-    val nearest = radar.nearest ?: return "Radar clear" to false
-    return "Radar level $nearest" to (nearest <= RADAR_ALERT_LEVEL)
+    val nearest = radar.nearest ?: return stringResource(R.string.msg_radar_clear) to false
+    return stringResource(R.string.fmt_radar_level, nearest) to (nearest <= RADAR_ALERT_LEVEL)
 }
 
+@Composable
 private fun acSummary(state: VehicleState): String = when (state.acOn) {
-    null -> "Climate ${Format.NA}"
-    false -> "Climate off"
-    true -> buildString {
-        append("Climate ")
-        append(Format.num(state.acTempDriver, 1, "℃"))
-        if (state.acAuto == true) append(" Auto")
-    }
+    null -> stringResource(R.string.fmt_climate, Format.NA)
+    false -> stringResource(R.string.msg_climate_off)
+    true -> stringResource(if (state.acAuto == true) R.string.fmt_climate_auto else R.string.fmt_climate, Format.num(state.acTempDriver, 1, stringResource(R.string.unit_celsius)))
 }
 
 /** Returns text to alert status; show N/A when all four wheels are unavailable. */
+@Composable
 private fun tyreSummary(state: VehicleState): Pair<String, Boolean> {
     val values = state.tirePressure.toList().filterNotNull()
-    if (values.isEmpty()) return "Tyres ${Format.NA}" to false
+    if (values.isEmpty()) return stringResource(R.string.fmt_tyres, Format.NA) to false
     val bad = values.any { it < TYRE_MIN_KPA || it > TYRE_MAX_KPA }
-    return if (bad) "Tyre pressure alert" to true else "Tyre pressure OK" to false
+    return if (bad) stringResource(R.string.msg_tyre_alert) to true else stringResource(R.string.msg_tyre_ok) to false
 }
 
+@Composable
 private fun doorSummary(state: VehicleState): Pair<String, Boolean> {
     val d = state.doors
     val all = listOf(d.fl, d.fr, d.rl, d.rr, d.hood, d.trunk)
-    if (all.all { it == null }) return "Doors ${Format.NA}" to false
-    return if (all.any { it == true }) "Door open" to true else "Doors closed" to false
+    if (all.all { it == null }) return stringResource(R.string.fmt_doors, Format.NA) to false
+    return if (all.any { it == true }) stringResource(R.string.msg_door_open) to true else stringResource(R.string.msg_doors_closed) to false
 }
 
 private const val ENGINE_MAX_RPM = 6000f
