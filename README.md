@@ -2,6 +2,8 @@
 
 English-first fork of [DiCar](https://github.com/tsix2019/dicar2), a local BYD DiLink vehicle dashboard and control application.
 
+**Planned remote access:** [Python backend specification](docs/server-specification.md) — an opt-in, self-hostable relay for a future phone companion app. The existing application does not use this server yet.
+
 <p align="center">
   <img src="docs/images/twin-dark.png" width="100%" alt="Vehicle twin dashboard in dark theme">
 </p>
