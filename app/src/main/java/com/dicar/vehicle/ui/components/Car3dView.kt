@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -83,7 +85,7 @@ fun Car3dView(state: VehicleState, modifier: Modifier = Modifier) {
             },
         )
         Text(
-            "Drag to rotate · Pinch to zoom",
+            stringResource(R.string.text_drag_to_rotate_pinch_to_zoom),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),

@@ -15,6 +15,16 @@ import com.dicar.vehicle.data.update.UpdateChecker
 
 class VehicleApp : Application() {
 
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        AppLanguage.apply(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        AppLanguage.apply(this)
+    }
+
     lateinit var container: AppContainer
         private set
 
@@ -30,11 +40,12 @@ class AppContainer(context: Context) {
     private val adbTransport = AdbTransport(context)
     private val bydAuto = BydAutoDataSource(context, adbTransport)
     val repository = VehicleRepository(
+        context = context.applicationContext,
         settings = settings,
-        sources = listOf(bydAuto, DiPlusDataSource(), MockDataSource()),
+        sources = listOf(bydAuto, DiPlusDataSource(context.applicationContext), MockDataSource(context.applicationContext)),
     )
     val probe = BydAutoProbe(context) { bydAuto.acquireAccess() }
-    val updateChecker = UpdateChecker(currentVersion = BuildConfig.VERSION_NAME)
+    val updateChecker = UpdateChecker(context = context.applicationContext, currentVersion = BuildConfig.VERSION_NAME)
     val hardwareInspector = HardwareInspector(context)
     // Stateful: utilization requires the difference between consecutive /proc/stat samples, so share one instance.
     val hardwareMonitor = HardwareMonitor(context)

@@ -33,6 +33,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.hardwareText
+import com.dicar.vehicle.ui.filterLocalizedSections
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.dicar.vehicle.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +46,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,7 +58,6 @@ import com.dicar.vehicle.data.hardware.HwItem
 import com.dicar.vehicle.data.hardware.HwSection
 import com.dicar.vehicle.data.hardware.LiveStats
 import com.dicar.vehicle.data.hardware.batterySection
-import com.dicar.vehicle.data.hardware.filterSections
 import com.dicar.vehicle.data.hardware.thermalSection
 import com.dicar.vehicle.ui.HardwareExportState
 import com.dicar.vehicle.ui.MainViewModel
@@ -95,7 +101,9 @@ fun HardwareScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
         }
     }
     // Keyword-filtered results feed both category counts and the list; category filtering applies only to the list.
-    val afterQuery = remember(all, query) { filterSections(all, query) }
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val afterQuery = remember(all, query, configuration) { filterLocalizedSections(all, query, context) }
     val visible = remember(afterQuery, category) {
         afterQuery.filter { category == null || it.category == category }
     }
@@ -157,12 +165,12 @@ private fun LiveStrip(live: LiveStats?) {
         horizontalArrangement = Arrangement.spacedBy(28.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LiveChip(if (blocked) "CPU (this app)" else "CPU", HwFormat.percent(load), loadColor(load))
-        LiveChip("Memory", HwFormat.percent(memPercent), MaterialTheme.colorScheme.secondary)
-        LiveChip("Memory usage", HwFormat.usage(live?.memUsed, live?.memTotal))
+        LiveChip(if (blocked) stringResource(R.string.text_cpu_this_app) else "CPU", HwFormat.percent(load), loadColor(load))
+        LiveChip(stringResource(R.string.text_memory), HwFormat.percent(memPercent), MaterialTheme.colorScheme.secondary)
+        LiveChip(stringResource(R.string.text_memory_usage), HwFormat.usage(live?.memUsed, live?.memTotal))
         LiveChip("GPU", HwFormat.hz(live?.gpuHz))
-        LiveChip("Max temp", HwFormat.celsius(hottest), tempColor(hottest))
-        LiveChip("Uptime", HwFormat.duration(live?.uptimeMs))
+        LiveChip(stringResource(R.string.text_max_temp), HwFormat.celsius(hottest), tempColor(hottest))
+        LiveChip(stringResource(R.string.text_uptime), HwFormat.duration(live?.uptimeMs))
     }
 }
 
@@ -171,7 +179,7 @@ private fun LiveChip(label: String, value: String, color: androidx.compose.ui.gr
     Column {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            value,
+            hardwareText(value),
             style = MaterialTheme.typography.titleMedium,
             color = when {
                 value == HwItem.UNKNOWN -> MaterialTheme.colorScheme.outline
@@ -195,13 +203,13 @@ private fun LivePanel(live: LiveStats?) {
         val blocked = live != null && !live.systemLoadAvailable
 
         @Composable
-        fun cpuTile(modifier: Modifier) = DataCard("Live CPU", modifier) {
+        fun cpuTile(modifier: Modifier) = DataCard(stringResource(R.string.text_live_cpu), modifier) {
             UsageTile(
-                label = if (blocked) "App usage" else "Total usage",
+                label = if (blocked) stringResource(R.string.text_app_usage) else stringResource(R.string.text_total_usage),
                 headline = HwFormat.percent(if (blocked) live?.appLoad else live?.totalLoad),
                 caption = buildString {
-                    append("${cores.count { it.online }} / ${cores.size} cores online")
-                    if (blocked) append(" · system blocks /proc/stat; global CPU usage unavailable")
+                    append(pluralStringResource(R.plurals.fmt_cores, cores.size, cores.count { it.online }, cores.size))
+                    if (blocked) append(stringResource(R.string.msg_cpu_blocked))
                 },
                 fraction = (if (blocked) live?.appLoad else live?.totalLoad)?.div(100f),
             )
@@ -213,9 +221,9 @@ private fun LivePanel(live: LiveStats?) {
         }
 
         @Composable
-        fun memTile(modifier: Modifier) = DataCard("Live memory", modifier) {
+        fun memTile(modifier: Modifier) = DataCard(stringResource(R.string.text_live_memory), modifier) {
             UsageTile(
-                label = "Memory used",
+                label = stringResource(R.string.text_memory_used),
                 headline = HwFormat.percent(
                     live?.let { s ->
                         val used = s.memUsed ?: return@let null
@@ -231,31 +239,31 @@ private fun LivePanel(live: LiveStats?) {
                 },
                 color = MaterialTheme.colorScheme.secondary,
             )
-            HwRow("Available", HwFormat.bytes(live?.memAvailable))
-            HwRow("Page cache", HwFormat.bytes(live?.memCached))
-            HwRow("Swap used", HwFormat.bytes(
+            HwRow(stringResource(R.string.text_available), HwFormat.bytes(live?.memAvailable))
+            HwRow(stringResource(R.string.text_page_cache), HwFormat.bytes(live?.memCached))
+            HwRow(stringResource(R.string.text_swap_used), HwFormat.bytes(
                 live?.let { s ->
                     val t = s.swapTotal ?: return@let null
                     val f = s.swapFree ?: return@let null
                     t - f
                 }
             ))
-            HwRow("App heap", HwFormat.usage(live?.javaHeapUsed, live?.javaHeapMax))
-            HwRow("App native memory", HwFormat.bytes(live?.nativeHeapUsed))
-            HwRow("App file handles", live?.openFds?.toString() ?: HwItem.UNKNOWN)
+            HwRow(stringResource(R.string.text_app_heap), HwFormat.usage(live?.javaHeapUsed, live?.javaHeapMax))
+            HwRow(stringResource(R.string.text_app_native_memory), HwFormat.bytes(live?.nativeHeapUsed))
+            HwRow(stringResource(R.string.text_app_file_handles), live?.openFds?.toString() ?: HwItem.UNKNOWN)
             if (live?.lowMemory == true) {
-                HwRow("Warning", "System reports low memory")
+                HwRow(stringResource(R.string.text_warning), stringResource(R.string.text_system_reports_low_memory))
             }
         }
 
         @Composable
-        fun miscTile(modifier: Modifier) = DataCard("Graphics · temperature · power", modifier) {
-            HwRow("GPU frequency", HwFormat.hz(live?.gpuHz))
-            HwRow("Thermal status", live?.thermalStatus ?: HwItem.UNKNOWN)
+        fun miscTile(modifier: Modifier) = DataCard(stringResource(R.string.text_graphics_temperature_power), modifier) {
+            HwRow(stringResource(R.string.text_gpu_frequency), HwFormat.hz(live?.gpuHz))
+            HwRow(stringResource(R.string.text_thermal_status), live?.thermalStatus ?: HwItem.UNKNOWN)
             UsageTile(
-                label = "Highest temperature",
+                label = stringResource(R.string.text_highest_temperature),
                 headline = HwFormat.celsius(hottest),
-                caption = live?.thermal?.maxByOrNull { it.celsius ?: -999f }?.type ?: "No readable temperature sensor",
+                caption = live?.thermal?.maxByOrNull { it.celsius ?: -999f }?.type ?: stringResource(R.string.text_no_readable_temperature_sensor),
                 // Use 100°C as full scale; a head-unit SoC at that temperature is likely throttling.
                 fraction = hottest?.div(100f),
                 color = tempColor(hottest),
@@ -263,18 +271,18 @@ private fun LivePanel(live: LiveStats?) {
             HorizontalDivider()
             val battery = live?.battery
             if (battery?.present == true) {
-                HwRow("Battery level", HwFormat.percent(battery.levelPercent))
-                HwRow("Status", battery.status)
-                HwRow("Voltage", battery.voltageMv?.let { "$it mV" } ?: HwItem.UNKNOWN)
-                HwRow("Battery temperature", HwFormat.celsius(battery.temperature))
+                HwRow(stringResource(R.string.text_battery_level), HwFormat.percent(battery.levelPercent))
+                HwRow(stringResource(R.string.text_status), battery.status)
+                HwRow(stringResource(R.string.text_voltage), battery.voltageMv?.let { "$it mV" } ?: HwItem.UNKNOWN)
+                HwRow(stringResource(R.string.text_battery_temperature), HwFormat.celsius(battery.temperature))
             } else {
                 // Head units commonly use the vehicle's 12V supply without their own battery.
-                HwRow("Battery", "No internal battery (vehicle-powered)")
-                HwRow("Power supply", battery?.plugged ?: HwItem.UNKNOWN)
+                HwRow(stringResource(R.string.text_battery), stringResource(R.string.text_no_internal_battery_vehicle_powered))
+                HwRow(stringResource(R.string.text_power_supply), battery?.plugged ?: HwItem.UNKNOWN)
             }
             HorizontalDivider()
-            HwRow("Uptime", HwFormat.duration(live?.uptimeMs))
-            HwRow("Deep sleep", HwFormat.duration(live?.let { it.uptimeMs - it.awakeMs }))
+            HwRow(stringResource(R.string.text_uptime), HwFormat.duration(live?.uptimeMs))
+            HwRow(stringResource(R.string.text_deep_sleep), HwFormat.duration(live?.let { it.uptimeMs - it.awakeMs }))
         }
 
         if (wide) {
@@ -316,9 +324,9 @@ private fun Toolbar(
                 value = query,
                 onValueChange = onQuery,
                 singleLine = true,
-                label = { Text("Search models, properties and values") },
+                label = { Text(stringResource(R.string.text_search_models_properties_and_values)) },
                 trailingIcon = {
-                    if (query.isNotEmpty()) TextButton(onClick = { onQuery("") }) { Text("Clear") }
+                    if (query.isNotEmpty()) TextButton(onClick = { onQuery("") }) { Text(stringResource(R.string.text_clear)) }
                 },
                 modifier = Modifier.weight(1f),
             )
@@ -327,19 +335,19 @@ private fun Toolbar(
                     CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text("Rescan")
+                Text(stringResource(R.string.text_rescan))
             }
-            OutlinedButton(onClick = onExport, enabled = sections.isNotEmpty()) { Text("Export") }
+            OutlinedButton(onClick = onExport, enabled = sections.isNotEmpty()) { Text(stringResource(R.string.text_export)) }
         }
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val total = sections.sumOf { it.itemCount }
-            CategoryChip("All ($total)", category == null) { onCategory(null) }
+            CategoryChip(stringResource(R.string.fmt_all, total), category == null) { onCategory(null) }
             sections.forEach { s ->
                 CategoryChip(
-                    "${s.category.glyph} ${s.category.label}（${s.itemCount}）",
+                    "${s.category.glyph} ${hardwareText(s.category.label)}（${s.itemCount}）",
                     category == s.category,
                 ) { onCategory(if (category == s.category) null else s.category) }
             }
@@ -384,18 +392,18 @@ private fun SectionGrid(sections: List<HwSection>, filtering: Boolean, live: Liv
 @Composable
 private fun SectionCard(section: HwSection, filtering: Boolean) {
     DataCard(
-        title = "${section.category.glyph} ${section.category.label}",
+        title = "${section.category.glyph} ${hardwareText(section.category.label)}",
         trailing = { CountBadge(section.itemCount) },
     ) {
         section.blocks.forEachIndexed { index, block ->
             if (index > 0) HorizontalDivider()
-            block.subtitle?.let { HwSubtitle(it) }
+            block.subtitle?.let { HwSubtitle(hardwareText(it)) }
             // Show all search matches; otherwise truncate long lists such as system properties
             // to prevent one card from dominating the list.
             val cap = if (filtering) Int.MAX_VALUE else MAX_ROWS
-            block.items.take(cap).forEach { HwRow(it.label, it.value) }
+            block.items.take(cap).forEach { HwRow(hardwareText(it.label), it.value) }
             if (block.items.size > cap) {
-                HwRow("…", "${block.items.size - cap} more items; use search or export to view")
+                HwRow("…", pluralStringResource(R.plurals.fmt_more, block.items.size - cap, block.items.size - cap))
             }
         }
     }
@@ -406,9 +414,9 @@ private fun Loading() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CircularProgressIndicator()
-            Text("Scanning hardware…", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.text_scanning_hardware), style = MaterialTheme.typography.bodyMedium)
             Text(
-                "The initial scan enumerates codecs and system properties and may take a few seconds",
+                stringResource(R.string.text_the_initial_scan_enumerates_codecs_and_system_properties_and_may_take_a_few_seconds),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -420,7 +428,7 @@ private fun Loading() {
 private fun Empty(query: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            if (query.isBlank()) "No hardware information collected" else "No results for \"$query\"",
+            if (query.isBlank()) stringResource(R.string.text_no_hardware_information_collected) else stringResource(R.string.fmt_no_results, query),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -440,20 +448,19 @@ private fun HardwareExportDialog(
     if (state !is HardwareExportState.Done) return
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Hardware report exported") },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.text_close)) } },
+        title = { Text(stringResource(R.string.text_hardware_report_exported)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    state.filePath?.let { "Saved: $it" } ?: "File write failed; showing report below",
+                    state.filePath?.let { stringResource(R.string.fmt_saved, it) } ?: stringResource(R.string.text_file_write_failed_showing_report_below),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Redact device identifiers", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.text_redact_device_identifiers), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Hide serial numbers, MAC/IP addresses, Android IDs and other identifiers." +
-                                "Enabled by default for reports that may be shared.",
+                            stringResource(R.string.desc_redact),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

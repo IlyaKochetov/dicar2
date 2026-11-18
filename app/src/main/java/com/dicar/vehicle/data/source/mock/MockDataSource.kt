@@ -1,5 +1,7 @@
 package com.dicar.vehicle.data.source.mock
 
+import android.content.Context
+import com.dicar.vehicle.R
 import com.dicar.vehicle.data.model.AcCycleMode
 import com.dicar.vehicle.data.model.AcWindMode
 import com.dicar.vehicle.data.model.CommandResult
@@ -20,7 +22,7 @@ import kotlin.math.sin
  * Driving data varies sinusoidally; commands can change climate state to verify optimistic updates and readback.
  * Tire temperature, PM2.5 and altitude are deliberately null to check N/A display.
  */
-class MockDataSource : VehicleDataSource {
+class MockDataSource(private val context: Context) : VehicleDataSource {
 
     override val type = DataSourceType.MOCK
 
@@ -111,10 +113,10 @@ class MockDataSource : VehicleDataSource {
         Thread.sleep(150)
         when (command) {
             is VehicleCommand.Quick -> if (command.action == QuickAction.PURIFY) {
-                return CommandResult.Unsupported("Mock: air purification unavailable")
+                return CommandResult.Unsupported(context.getString(R.string.mock_purify))
             }
             is VehicleCommand.SeatVent -> if (command.seat == Zone.PASSENGER) {
-                return CommandResult.Unsupported("Mock: passenger ventilation unavailable")
+                return CommandResult.Unsupported(context.getString(R.string.mock_vent))
             }
             else -> Unit
         }

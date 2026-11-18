@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -40,6 +42,8 @@ import java.util.Locale
  */
 @Composable
 fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
+    val pressureUnit = stringResource(R.string.unit_bar)
+    val temperatureUnit = stringResource(R.string.unit_celsius)
     val scheme = MaterialTheme.colorScheme
     val body = MaterialTheme.carBody
     val glass = MaterialTheme.carGlass
@@ -313,7 +317,7 @@ fun CarDiagram(state: VehicleState, modifier: Modifier = Modifier) {
             }
             // Convert the head-unit pressure from kPa to bar for display.
             val bar = kpa?.let { String.format(Locale.US, "%.1f", it / 100f) } ?: "--"
-            val caption = "bar" + (temp?.let { " · ${Math.round(it)}℃" } ?: "")
+            val caption = pressureUnit + (temp?.let { " · ${Math.round(it)}$temperatureUnit" } ?: "")
             drawIntoCanvas { canvas ->
                 canvas.nativeCanvas.drawText(bar, x, y + bodyH * 0.045f, big)
                 canvas.nativeCanvas.drawText(caption, x, y + bodyH * 0.095f, small)

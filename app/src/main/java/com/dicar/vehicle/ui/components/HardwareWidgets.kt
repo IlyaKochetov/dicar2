@@ -14,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.hardwareText
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,14 +45,14 @@ fun UsageTile(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            headline,
+            hardwareText(headline),
             style = MaterialTheme.typography.headlineMedium,
             color = if (headline == HwItem.UNKNOWN) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
         ThinBar(fraction, color)
         Text(
-            caption,
+            hardwareText(caption),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -108,7 +111,7 @@ fun CoreRow(core: CoreLive, modifier: Modifier = Modifier) {
             ThinBar(core.load?.div(100f), loadColor(core.load), height = 8)
         }
         Text(
-            if (core.online) HwFormat.kHz(core.curKhz) else "Offline",
+            if (core.online) hardwareText(HwFormat.kHz(core.curKhz)) else stringResource(R.string.text_offline),
             style = MaterialTheme.typography.labelMedium,
             color = if (core.online) MaterialTheme.colorScheme.onSurface else dim,
             maxLines = 1,
@@ -156,7 +159,7 @@ fun HwRow(label: String, value: String, modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.width(10.dp))
         Text(
-            value,
+            hardwareText(value),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             color = if (value == HwItem.UNKNOWN) MaterialTheme.colorScheme.outline

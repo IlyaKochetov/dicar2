@@ -10,6 +10,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.dicar.vehicle.ui.localizedVehicleValue
+import com.dicar.vehicle.ui.localizedEnergyFlow
+import androidx.compose.ui.res.stringResource
+import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -21,28 +25,28 @@ import com.dicar.vehicle.util.Format
 /** Driving and powertrain card: F01-F08 and F37 energy flow. */
 @Composable
 fun PowerCard(state: VehicleState, modifier: Modifier = Modifier) {
-    DataCard(title = "Driving & powertrain", modifier = modifier, trailing = { GearBadge(state.gear) }) {
+    DataCard(title = stringResource(R.string.label_driving_powertrain), modifier = modifier, trailing = { GearBadge(state.gear) }) {
         Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            BigMetric(Format.num(state.speed), "km/h", "Speed")
-            BigMetric(Format.num(state.power, 1), "kW", "Total power")
+            BigMetric(Format.num(state.speed), stringResource(R.string.unit_speed), stringResource(R.string.label_speed))
+            BigMetric(Format.num(state.power, 1), stringResource(R.string.unit_power), stringResource(R.string.label_total_power))
         }
         MetricPair(
-            "Engine RPM", Format.num(state.engineRpm, unit = "rpm"),
-            "Engine power", Format.num(state.enginePower, 1, "kW"),
+            stringResource(R.string.label_engine_rpm), Format.num(state.engineRpm, unit = stringResource(R.string.unit_rpm)),
+            stringResource(R.string.label_engine_power), Format.num(state.enginePower, 1, stringResource(R.string.unit_power)),
         )
         MetricPair(
-            "Front motor RPM", Format.num(state.motorRpmFront, unit = "rpm"),
-            "Rear motor RPM", Format.num(state.motorRpmRear, unit = "rpm"),
+            stringResource(R.string.label_front_motor_rpm), Format.num(state.motorRpmFront, unit = stringResource(R.string.unit_rpm)),
+            stringResource(R.string.label_rear_motor_rpm), Format.num(state.motorRpmRear, unit = stringResource(R.string.unit_rpm)),
         )
-        MetricRow("Motor power", Format.num(state.motorPower, 1, "kW"))
-        PercentBar("Accelerator position", state.accelerator, MaterialTheme.colorScheme.secondary)
-        PercentBar("Brake position", state.brake, MaterialTheme.colorScheme.error)
+        MetricRow(stringResource(R.string.label_motor_power), Format.num(state.motorPower, 1, stringResource(R.string.unit_power)))
+        PercentBar(stringResource(R.string.label_accelerator_position), state.accelerator, MaterialTheme.colorScheme.secondary)
+        PercentBar(stringResource(R.string.label_brake_position), state.brake, MaterialTheme.colorScheme.error)
         HorizontalDivider()
         MetricPair(
-            "Powertrain mode", Format.text(state.workMode),
-            "Drive mode", Format.text(state.driveMode),
+            stringResource(R.string.label_powertrain_mode), Format.text(localizedVehicleValue(state.workMode)),
+            stringResource(R.string.label_drive_mode), Format.text(localizedVehicleValue(state.driveMode)),
         )
-        MetricRow("Energy flow", state.energyFlow ?: Format.NA)
+        MetricRow(stringResource(R.string.label_energy_flow), localizedEnergyFlow(state.energyFlow) ?: Format.NA)
     }
 }
 

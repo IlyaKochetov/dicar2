@@ -19,7 +19,6 @@ val keystoreProps = rootProject.file("keystore.properties").takeIf { it.exists()
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -32,9 +31,8 @@ android {
         minSdk = 28
         // 需求文档要求 targetSdk 33：避免车机上因新版本行为限制导致安装/前台服务问题
         targetSdk = 33
-        versionCode = 7
-        // Previously 0.4.2.
-        versionName = "1.0"
+        versionCode = 8
+        versionName = "1.1"
     }
 
     signingConfigs {
@@ -71,6 +69,9 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
     lint {
         // targetSdk 33 是刻意选择（车机兼容），不需要 Play 商店的过期提示

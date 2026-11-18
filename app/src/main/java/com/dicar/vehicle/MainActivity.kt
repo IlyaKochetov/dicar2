@@ -1,6 +1,7 @@
 package com.dicar.vehicle
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -14,6 +15,10 @@ import com.dicar.vehicle.ui.screen.DashboardScreen
 import com.dicar.vehicle.ui.theme.DiCarTheme
 
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
 
     private val viewModel: MainViewModel by viewModels()
 

@@ -2,6 +2,8 @@ package com.dicar.vehicle.data.source.bydauto
 
 import android.content.Context
 import android.util.Log
+import com.dicar.vehicle.R
+import com.dicar.vehicle.data.commandLabel
 import com.dicar.vehicle.data.model.AcCycleMode
 import com.dicar.vehicle.data.model.CommandResult
 import com.dicar.vehicle.data.model.DataSourceType
@@ -30,7 +32,7 @@ import kotlin.math.roundToInt
  * [BydApiMap] configures interfaces and encodings; this class reads, converts and validates ranges.
  * For unavailable readings on a vehicle, run Settings → Probe BYDAuto interfaces and compare the report with BydApiMap.
  */
-class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleDataSource {
+class BydAutoDataSource(private val context: Context, transport: AdbTransport) : VehicleDataSource {
 
     override val type = DataSourceType.BYD_AUTO
 
@@ -61,7 +63,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     /** Establish or validate and select the channel; throw with a reason if unavailable. */
     private fun acquire(): BydAccess {
         val a = active ?: pickAccess()?.also { active = it }
-            ?: throw IllegalStateException("Head unit debug port (127.0.0.1:5555) not found; enable wireless debugging")
+            ?: throw IllegalStateException(context.getString(R.string.byd_debug_missing))
         a.ensureReady()
         current = a
         return a
@@ -285,7 +287,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
 
             is VehicleCommand.AcWind -> {
                 val code = m.AC_WIND_MODE_CODES[command.mode]
-                    ?: return CommandResult.Unsupported("No encoding configured for ${command.mode.label}")
+                    ?: return CommandResult.Unsupported(context.getString(R.string.byd_encoding_missing, context.commandLabel(command)))
                 namedThenFid(Dev.AC, m.AC_SET_WIND_MODE, intArrayOf(code, m.AC_SOURCE), m.AC_WIND_MODE_SET_FID, null, code)
             }
 
@@ -302,7 +304,7 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
 
             is VehicleCommand.Glass -> {
                 val symbol = m.GLASS_SET_FIDS[command.zone]
-                    ?: return CommandResult.Unsupported("No write interface configured for ${command.zone.label}")
+                    ?: return CommandResult.Unsupported(context.getString(R.string.byd_write_missing, context.commandLabel(command)))
                 val percent = if (command.open) m.GLASS_OPEN_PERCENT else m.GLASS_CLOSE_PERCENT
                 toCommandResult(writeFidSym(Dev.BODYWORK, symbol, null, percent), command.zone.label)
             }
@@ -335,13 +337,13 @@ class BydAutoDataSource(context: Context, transport: AdbTransport) : VehicleData
     }
 
     private fun toCommandResult(result: CallResult, name: String): CommandResult = when (result) {
-        CallResult.Missing -> CommandResult.Unsupported("Interface missing: $name")
+        CallResult.Missing -> CommandResult.Unsupported(context.getString(R.string.byd_interface_missing, name))
         is CallResult.Error -> CommandResult.Failed(
-            if (result.error is SecurityException) "Permission denied (authorize wireless debugging)" else (result.error.message ?: result.error.toString())
+            if (result.error is SecurityException) context.getString(R.string.byd_permission_denied) else (result.error.message ?: result.error.toString())
         )
         is CallResult.Value -> {
             val code = (result.value as? Number)?.toInt()
-            if (code != null && ValueSanitizer.isErrorCode(code)) CommandResult.Failed("Return code $code") else CommandResult.Sent
+            if (code != null && ValueSanitizer.isErrorCode(code)) CommandResult.Failed(context.getString(R.string.byd_return_code, code)) else CommandResult.Sent
         }
     }
 
