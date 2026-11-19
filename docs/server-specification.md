@@ -197,11 +197,13 @@ Use standard HTTP semantics, including `401` unauthenticated, `403` unauthorized
     "speed_kmh": 0.0,
     "gear": "P",
     "soc_percent": 68.0,
-    "range_km": 290,
+    "electric_range_km": 290,
     "charging_status": "not_charging",
-    "cabin_temp_c": 21.5,
+    "inside_temp_c": 21.5,
     "climate_on": false,
-    "climate_target_c": 22.0
+    "driver_target_c": 22.0,
+    "source": "byd_auto",
+    "quality": {"speed_kmh": "measured", "gear": "measured"}
   }
 }
 ```
@@ -253,13 +255,9 @@ The server may emit `vehicle.state` and `vehicle.connection` messages only to au
 
 ## 9. Vehicle state model and retention
 
-Define explicit Pydantic models with JSON schema and contract tests. MVP fields:
+Define explicit Pydantic models with JSON schema and contract tests for every field in the [vehicle data and command catalog](remote-vehicle-catalog.md). That catalog defines the v1 field names, units, nested objects, enums and source mappings. Include online and last-seen timestamps, state freshness, protocol version and supported capabilities. Send catalog fields when remote sharing is enabled, using null for unavailable observations. Omit `altitude_m`, `trip_distance_km`, `trip_electric_kwh_per_100km` and `trip_fuel_l_per_100km` unless the owner separately opts in.
 
-- Online and last-seen timestamps; state freshness; API/protocol version; supported capabilities.
-- State of charge, estimated range, charging status and connector status.
-- Vehicle speed and gear (primarily for remote-command safety checks).
-- Inside/outside temperature, climate status and current target temperature.
-- Optionally odometer and 12V battery voltage in later versioned schema additions.
+Include `source` (`byd_auto`, `di_plus`, or `mock`) and `quality`, mapping field names to `measured`, `derived`, or `unknown`. Clearly identify mock data. A snapshot timestamp does not establish freshness of each observation: the car must track speed and gear freshness independently for safety checks. Preserve provenance of derived readings and never forward unsanitized source errors.
 
 **Default privacy:** no VIN, GPS coordinates, Android ID, SIM details, hardware serial numbers, MACs, arbitrary system properties or per-second raw telemetry upload. Location is a separate **explicit opt-in** feature requiring a client-side permission and a server capability declaration.
 
@@ -274,12 +272,12 @@ Data retention defaults (configurable by operator): pairing records 24 hours max
 | Action | Server validation | Existing car-side command |
 |---|---|---|
 | `climate.power` | Boolean `enabled` | `VehicleCommand.AcPower` |
-| `climate.temperature` | `zone=driver/passenger`, numeric temperature in the car-reported supported range | `VehicleCommand.AcTemperature` |
+| `climate.temperature` | `zone=driver/passenger`, numeric `celsius` in the car-reported supported range and step | `VehicleCommand.AcTemperature` |
 | `climate.auto` | Boolean `enabled` | `VehicleCommand.AcAuto` |
 
 Capabilities must come from the connected car. A command unsupported by the model/firmware is denied or returns `unsupported`, not silently emulated.
 
-No glass/windows, sunroof, seats, defrost, remote lock/unlock or raw `Quick` commands in initial public remote API. Adding any of them requires a new documented safety review and explicit opt-in.
+Reject `climate.fan`, `climate.wind`, `climate.cycle`, seat heating and ventilation, glass/windows, sunroof, sunshade, defrost, remote lock/unlock and `Quick` commands in v1. The catalog lists their local equivalents; they are not remotely enabled. Adding actions requires a documented safety review and explicit opt-in.
 
 ### Mandatory command lifecycle
 
@@ -288,7 +286,7 @@ No glass/windows, sunroof, seats, defrost, remote lock/unlock or raw `Quick` com
 3. Server rejects if the car is offline, its state is stale or movement safety cannot be established. **No offline command queue.**
 4. The server creates a command record with a **10-second TTL**, forwards once to the active car connection and responds `202` with command ID.
 5. The car independently checks **current** local state immediately before executing: fresh reading, gear `P`, speed below 1 km/h, supported command, and remote access explicitly enabled. Unknown speed/gear is a rejection, not a safe default.
-6. The car deduplicates IDs across short reconnects, calls the existing repository adapter and reports the actual result. A sent command without confirmed readback becomes `sent_unconfirmed`.
+6. The car deduplicates IDs across short reconnects, calls the existing repository adapter and reports the actual result. A sent command without confirmed readback becomes `sent_unconfirmed`; optimistic state updates are not readback.
 7. Server records the result and notifies subscribed phone clients. Expired commands are never replayed on reconnect.
 
 Default rate limit: at most **6 remote control requests per minute per vehicle** (configurable downward). Commands with the same idempotency key and payload return the original result; same key with different payload is rejected. Duplicate WebSocket messages must never execute the action twice.
