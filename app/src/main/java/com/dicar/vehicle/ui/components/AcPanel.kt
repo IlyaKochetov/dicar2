@@ -229,11 +229,11 @@ private fun GlassControl(zone: GlassZone, percent: Int?, pending: Set<String>, a
             Spacer(Modifier.width(6.dp))
         }
         OutlinedButton(onClick = { actions.glass(zone, true) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text(stringResource(R.string.ui_on))
+            Text(stringResource(R.string.glass_open))
         }
         Spacer(Modifier.width(6.dp))
         OutlinedButton(onClick = { actions.glass(zone, false) }, contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text(stringResource(R.string.ui_off))
+            Text(stringResource(R.string.glass_close))
         }
     }
 }

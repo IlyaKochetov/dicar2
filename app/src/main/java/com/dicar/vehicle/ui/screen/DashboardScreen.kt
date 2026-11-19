@@ -72,7 +72,9 @@ enum class MainTab(val label: String, val glyph: String) {
 
 @Composable
 fun DashboardScreen(viewModel: MainViewModel) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val rawState by viewModel.state.collectAsStateWithLifecycle()
+    val evOnly by viewModel.evOnly.collectAsStateWithLifecycle()
+    val state = if (evOnly) rawState.copy(engineRpm = null, enginePower = null, workMode = null) else rawState
     val pending by viewModel.pendingKeys.collectAsStateWithLifecycle()
     val intervalMs by viewModel.refreshIntervalMs.collectAsStateWithLifecycle()
     val sourceMode by viewModel.sourceMode.collectAsStateWithLifecycle()
@@ -135,8 +137,8 @@ fun DashboardScreen(viewModel: MainViewModel) {
                     )
                     state.error?.let { ErrorBanner(it) }
                     when (tab) {
-                        MainTab.TWIN -> TwinPane(state, history, Modifier.fillMaxSize(), use3d = twin3d)
-                        MainTab.CARDS -> CardsPane(state, pending, viewModel)
+                        MainTab.TWIN -> TwinPane(state, history, Modifier.fillMaxSize(), use3d = twin3d, evOnly = evOnly)
+                        MainTab.CARDS -> CardsPane(state, pending, viewModel, evOnly)
                         MainTab.HARDWARE -> HardwareScreen(viewModel, Modifier.fillMaxSize())
                     }
                 }
@@ -150,6 +152,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
             sourceMode = sourceMode,
             probe = probe,
             twin3dEnabled = twin3d,
+            evOnly = evOnly,
             update = update,
             autoCheckUpdate = autoCheckUpdate,
             floatingBlocks = floatingBlocks,
@@ -157,6 +160,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
             onIntervalChange = viewModel::setRefreshInterval,
             onSourceModeChange = viewModel::setSourceMode,
             onTwin3dChange = viewModel::setTwin3dEnabled,
+            onEvOnlyChange = viewModel::setEvOnly,
             onCheckUpdate = viewModel::checkUpdate,
             onAutoCheckUpdateChange = viewModel::setAutoCheckUpdate,
             onToggleFloatingBlock = viewModel::toggleFloatingBlock,
@@ -169,7 +173,7 @@ fun DashboardScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-private fun CardsPane(state: VehicleState, pending: Set<String>, viewModel: MainViewModel) {
+private fun CardsPane(state: VehicleState, pending: Set<String>, viewModel: MainViewModel, evOnly: Boolean) {
     // Adaptive cards: about three columns at 1920 landscape width, one on portrait or phones.
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Adaptive(minSize = 400.dp),
@@ -178,8 +182,8 @@ private fun CardsPane(state: VehicleState, pending: Set<String>, viewModel: Main
         verticalItemSpacing = 12.dp,
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(key = "power") { PowerCard(state) }
-        item(key = "battery") { BatteryCard(state) }
+        item(key = "power") { PowerCard(state, evOnly = evOnly) }
+        item(key = "battery") { BatteryCard(state, evOnly = evOnly) }
         item(key = "ac") {
             AcPanel(state, pending, actions = viewModel, tempStep = state.acTempStep)
         }

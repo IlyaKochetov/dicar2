@@ -1,4 +1,5 @@
 <resources>
+    <string name="settings_ev_only">Только электромобиль</string>
     <string name="settings_language">Язык</string>
     <string name="language_system">Как в системе</string>
     <string name="language_english">English</string>
@@ -80,8 +81,8 @@
     <string name="ui_climate_controls">Климат-контроль</string>
     <string name="ui_cabin_temperature">Темп. в салоне</string>
     <string name="ui_outside_temperature">Темп. снаружи</string>
-    <string name="ui_driver_temperature">Темп. вод.</string>
-    <string name="ui_passenger_temperature">Темп. пасс.</string>
+    <string name="ui_driver_temperature">Темп. водитель</string>
+    <string name="ui_passenger_temperature">Темп. пассажир</string>
     <string name="ui_fan_speed">Вентилятор</string>
     <string name="ui_airflow_direction">Обдув</string>
     <string name="ui_driver_heating">Обогрев вод.</string>
@@ -90,6 +91,8 @@
     <string name="ui_passenger_ventilation">Вент. пасс.</string>
     <string name="ui_windows_sunroof_vehicle_parts_move_check_surroundings">Стёкла и люк (детали движутся; проверьте окружение)</string>
     <string name="ui_quick_actions">Быстрые действия</string>
+    <string name="glass_open">Откр.</string>
+    <string name="glass_close">Закр.</string>
     <string name="ui_on">Вкл.</string>
     <string name="ui_off">Выкл.</string>
     <string name="text_done">Готово</string>
@@ -246,7 +249,7 @@
     <string name="display_off">Выкл.</string>
     <string name="flow_external">Внешнее питание → батарея</string>
     <string name="flow_engine_charging">Двигатель → батарея (зарядка)</string>
-    <string name="flow_regen">Колёса → электромотор → батарея (рекуперация)</string>
+    <string name="flow_regen">Колёса → мотор → рекуперация</string>
     <string name="flow_engine_battery">Двигатель + батарея → колёса</string>
     <string name="flow_engine">Двигатель → колёса</string>
     <string name="flow_battery">Батарея → электромотор → колёса</string>

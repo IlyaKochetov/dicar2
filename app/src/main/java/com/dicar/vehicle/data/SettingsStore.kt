@@ -50,6 +50,13 @@ class SettingsStore(context: Context) {
         prefs.edit { putString(KEY_SOURCE, mode.name) }
     }
 
+    private val _evOnly = MutableStateFlow(prefs.getBoolean("ev_only", false))
+    val evOnly: StateFlow<Boolean> = _evOnly.asStateFlow()
+    fun setEvOnly(enabled: Boolean) {
+        _evOnly.value = enabled
+        prefs.edit { putBoolean("ev_only", enabled) }
+    }
+
     // ---------------- 更新检查 ----------------
 
     /**

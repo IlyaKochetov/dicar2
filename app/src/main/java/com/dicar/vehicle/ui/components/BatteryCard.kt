@@ -17,12 +17,12 @@ import com.dicar.vehicle.util.Format
 
 /** Battery and energy card: F09-F17. */
 @Composable
-fun BatteryCard(state: VehicleState, modifier: Modifier = Modifier) {
+fun BatteryCard(state: VehicleState, modifier: Modifier = Modifier, evOnly: Boolean = false) {
     DataCard(title = stringResource(R.string.label_battery_energy), modifier = modifier) {
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.Bottom) {
             BigMetric(Format.num(state.soc, 1), "%", "SOC")
             BigMetric(Format.num(state.remainRangeElec), stringResource(R.string.unit_km), stringResource(R.string.label_ev_range), size = 32.sp)
-            BigMetric(Format.num(state.remainRangeFuel), stringResource(R.string.unit_km), stringResource(R.string.label_fuel_range), size = 32.sp)
+            if (!evOnly) BigMetric(Format.num(state.remainRangeFuel), stringResource(R.string.unit_km), stringResource(R.string.label_fuel_range), size = 32.sp)
         }
         PercentBar(stringResource(R.string.label_state_of_charge), state.soc, MaterialTheme.colorScheme.secondary)
 
@@ -55,6 +55,10 @@ fun BatteryCard(state: VehicleState, modifier: Modifier = Modifier) {
             },
             stringResource(R.string.label_charging_status), Format.text(localizedVehicleValue(state.chargeStatus)),
         )
+        if (evOnly) {
+            MetricRow(stringResource(R.string.label_instant_ev_consumption), Format.num(state.instantElecConsumption, 1, stringResource(R.string.unit_electric_consumption)))
+            MetricRow(stringResource(R.string.label_trip_ev_consumption), Format.num(state.tripElecConsumption, 1, stringResource(R.string.unit_electric_consumption)))
+        } else {
         MetricPair(
             stringResource(R.string.label_instant_ev_consumption), Format.num(state.instantElecConsumption, 1, stringResource(R.string.unit_electric_consumption)),
             stringResource(R.string.label_instant_fuel_consumption), Format.num(state.instantFuelConsumption, 1, stringResource(R.string.unit_fuel_consumption)),
@@ -64,5 +68,6 @@ fun BatteryCard(state: VehicleState, modifier: Modifier = Modifier) {
             stringResource(R.string.label_trip_fuel_consumption), Format.num(state.tripFuelConsumption, 1, stringResource(R.string.unit_fuel_consumption)),
         )
         MetricRow(stringResource(R.string.label_fuel_level), Format.num(state.fuelPercent, unit = "%"))
+        }
     }
 }

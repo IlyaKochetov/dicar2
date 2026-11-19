@@ -59,6 +59,7 @@ fun SettingsDialog(
     sourceMode: SourceMode,
     probe: ProbeUiState,
     twin3dEnabled: Boolean,
+    evOnly: Boolean,
     update: UpdateState,
     autoCheckUpdate: Boolean,
     floatingBlocks: Set<FloatingBlock>,
@@ -66,6 +67,7 @@ fun SettingsDialog(
     onIntervalChange: (Long) -> Unit,
     onSourceModeChange: (SourceMode) -> Unit,
     onTwin3dChange: (Boolean) -> Unit,
+    onEvOnlyChange: (Boolean) -> Unit,
     onCheckUpdate: () -> Unit,
     onAutoCheckUpdateChange: (Boolean) -> Unit,
     onToggleFloatingBlock: (FloatingBlock) -> Unit,
@@ -102,6 +104,11 @@ fun SettingsDialog(
                         Spacer(Modifier.width(8.dp))
                         Text(label)
                     }
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth().selectable(selected = evOnly, onClick = { onEvOnlyChange(!evOnly) }), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.settings_ev_only), modifier = Modifier.weight(1f))
+                    Switch(checked = evOnly, onCheckedChange = null)
                 }
                 HorizontalDivider()
                 Text(stringResource(R.string.text_data_source), style = MaterialTheme.typography.titleSmall)

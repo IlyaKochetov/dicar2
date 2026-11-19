@@ -1,6 +1,7 @@
 package com.dicar.vehicle.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -156,7 +157,9 @@ fun Stepper(
     onPlus: () -> Unit,
     enabled: Boolean = true,
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val valueWidth = 110.dp + (maxWidth - 222.dp).coerceAtLeast(0.dp) * 0.15f
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
@@ -167,7 +170,7 @@ fun Stepper(
             Text("−", fontSize = 22.sp)
         }
         Row(
-            Modifier.width(110.dp),
+            Modifier.width(valueWidth),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -184,6 +187,7 @@ fun Stepper(
         }
         FilledTonalButton(onClick = onPlus, enabled = enabled, colors = stepperColors(), modifier = Modifier.size(56.dp, 48.dp), contentPadding = PaddingValues(0.dp)) {
             Text("+", fontSize = 22.sp)
+        }
         }
     }
 }

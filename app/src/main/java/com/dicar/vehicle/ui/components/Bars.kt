@@ -158,9 +158,10 @@ fun LabeledBar(
     modifier: Modifier = Modifier,
     unit: String = "%",
     decimals: Int = 0,
+    maxValue: Float = 100f,
 ) {
     val fraction by animateFloatAsState(
-        targetValue = ((value ?: 0f) / 100f).coerceIn(0f, 1f),
+        targetValue = ((value ?: 0f) / maxValue).coerceIn(0f, 1f),
         label = "labeled-bar",
     )
     val track = MaterialTheme.colorScheme.surfaceContainerHigh

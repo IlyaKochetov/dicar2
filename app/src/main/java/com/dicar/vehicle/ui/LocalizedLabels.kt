@@ -12,15 +12,15 @@ import com.dicar.vehicle.ui.screen.MainTab
 @Composable
 fun displayOnOff(on: Boolean?): String = when (on) {
     null -> com.dicar.vehicle.util.Format.NA
-    true -> stringResource(R.string.display_open)
-    false -> stringResource(R.string.display_closed)
+    true -> stringResource(R.string.display_on)
+    false -> stringResource(R.string.display_off)
 }
 
 @Composable
 fun displayOpenClose(open: Boolean?): String = when (open) {
     null -> com.dicar.vehicle.util.Format.NA
-    true -> stringResource(R.string.display_on)
-    false -> stringResource(R.string.display_off)
+    true -> stringResource(R.string.display_open)
+    false -> stringResource(R.string.display_closed)
 }
 
 @Composable

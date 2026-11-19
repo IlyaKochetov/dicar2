@@ -1,5 +1,6 @@
 package com.dicar.vehicle.ui.screen
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,10 @@ import com.dicar.vehicle.ui.localizedEnergyFlow
 import androidx.compose.ui.res.stringResource
 import com.dicar.vehicle.R
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +39,7 @@ import com.dicar.vehicle.ui.components.DataCard
 import com.dicar.vehicle.ui.components.DialGauge
 import com.dicar.vehicle.ui.components.HeroNumber
 import com.dicar.vehicle.ui.components.LabeledBar
+import com.dicar.vehicle.ui.components.MetricRow
 import com.dicar.vehicle.ui.components.SignedBar
 import com.dicar.vehicle.ui.components.SignedBarScale
 import com.dicar.vehicle.ui.components.StatusPill
@@ -51,6 +57,7 @@ fun TwinPane(
     history: List<MainViewModel.HistorySample>,
     modifier: Modifier = Modifier,
     use3d: Boolean = false,
+    evOnly: Boolean = false,
 ) {
     BoxWithConstraints(modifier) {
         val wide = maxWidth > 720.dp
@@ -60,11 +67,12 @@ fun TwinPane(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    RpmCard(state, Modifier.weight(1f).fillMaxHeight())
+                    if (evOnly) EvDrivingCard(state, Modifier.weight(1f).fillMaxHeight())
+                    else RpmCard(state, Modifier.weight(1f).fillMaxHeight())
                     SpeedAndCar(state, use3d, Modifier.weight(1.25f).fillMaxHeight())
-                    PowerCardPane(state, Modifier.weight(1f).fillMaxHeight())
+                    PowerCardPane(state, history, Modifier.weight(1f).fillMaxHeight(), evOnly)
                 }
-                TrendStrip(state, history)
+                TrendStrip(state, history, evOnly)
             }
         } else {
             Column(
@@ -77,12 +85,45 @@ fun TwinPane(
                 // Use a fixed height on narrow screens: aspect-ratio sizing would make the car
                 // about 700dp tall on a 600dp-wide screen.
                 SpeedAndCar(state, use3d, Modifier.fillMaxWidth().height(380.dp))
-                RpmCard(state, Modifier.fillMaxWidth().height(260.dp))
-                PowerCardPane(state, Modifier.fillMaxWidth())
-                TrendStrip(state, history)
+                if (evOnly) EvDrivingCard(state, Modifier.fillMaxWidth())
+                else RpmCard(state, Modifier.fillMaxWidth().height(260.dp))
+                PowerCardPane(state, history, Modifier.fillMaxWidth(), evOnly)
+                TrendStrip(state, history, evOnly)
             }
         }
     }
+}
+
+/** EV driving information and current safety statuses. */
+@Composable
+private fun EvDrivingCard(state: VehicleState, modifier: Modifier = Modifier) {
+    val power = state.batteryPower ?: state.power
+    DataCard(title = stringResource(R.string.text_drive_power), modifier = modifier) {
+        HeroNumber(power, stringResource(R.string.unit_power), size = 36.sp, signed = true)
+        SignedBar(power, maxPositive = MAX_DRIVE_KW, maxNegative = MAX_REGEN_KW)
+        SignedBarScale(stringResource(R.string.text_regen), "0", stringResource(R.string.text_drive))
+        MetricRow(stringResource(R.string.label_speed), Format.num(state.speed, unit = stringResource(R.string.unit_speed)))
+        MetricRow(stringResource(R.string.ui_cabin_temperature), Format.num(state.insideTemp, 1, stringResource(R.string.unit_celsius)))
+        MetricRow(stringResource(R.string.ui_outside_temperature), Format.num(state.outsideTemp, 1, stringResource(R.string.unit_celsius)))
+        val tyre = tyreSummary(state)
+        val door = doorSummary(state)
+        val radar = radarSummary(state)
+        listOfNotNull(radar, tyre, door).forEach { (message, alert) ->
+            Text(message, style = MaterialTheme.typography.labelMedium,
+                color = if (alert) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun MotorRpmBar(state: VehicleState) {
+    LabeledBar(
+        stringResource(R.string.rpm_motor),
+        state.displayRpm?.let { kotlin.math.abs(it.toFloat()) },
+        MaterialTheme.colorScheme.primary,
+        unit = stringResource(R.string.unit_rpm),
+        maxValue = MOTOR_MAX_RPM,
+    )
 }
 
 /** Left column: RPM gauge; switches to motor RPM, range and redline when the engine is inactive. */
@@ -119,7 +160,11 @@ private fun SpeedAndCar(state: VehicleState, use3d: Boolean, modifier: Modifier 
 
 /** Right column: drive/regeneration power, battery, fuel and range. */
 @Composable
-private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
+private fun PowerCardPane(state: VehicleState, history: List<MainViewModel.HistorySample>, modifier: Modifier = Modifier, evOnly: Boolean = false) {
+    if (evOnly && (state.speed ?: 0f) > 0f) {
+        ElectricRangeCard(state, history, modifier)
+        return
+    }
     val scheme = MaterialTheme.colorScheme
     val power = state.batteryPower ?: state.power
     DataCard(title = stringResource(R.string.text_drive_power), modifier = modifier) {
@@ -128,7 +173,7 @@ private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
         SignedBarScale(stringResource(R.string.text_regen), "0", stringResource(R.string.text_drive))
         Spacer(Modifier.height(2.dp))
         LabeledBar(stringResource(R.string.text_battery), state.soc, scheme.secondary)
-        LabeledBar(stringResource(R.string.text_fuel), state.fuelPercent, scheme.tertiary)
+        if (!evOnly) LabeledBar(stringResource(R.string.text_fuel), state.fuelPercent, scheme.tertiary)
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth()) {
             val style = MaterialTheme.typography.labelLarge
@@ -138,12 +183,73 @@ private fun PowerCardPane(state: VehicleState, modifier: Modifier = Modifier) {
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
-            Text(
+            if (!evOnly) Text(
                 stringResource(R.string.fmt_combined, Format.num(combinedRange(state), unit = stringResource(R.string.unit_km))),
                 style = style,
                 color = scheme.onSurfaceVariant,
             )
         }
+        if (evOnly) MotorRpmBar(state)
+    }
+}
+
+/** Vehicle-reported range and recent readings. */
+@Composable
+private fun ElectricRangeCard(state: VehicleState, history: List<MainViewModel.HistorySample>, modifier: Modifier) {
+    val range = state.remainRangeElec
+    val color = when {
+        range == null -> MaterialTheme.colorScheme.onSurfaceVariant
+        range <= 50 -> MaterialTheme.colorScheme.error
+        range <= 100 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.secondary
+    }
+    DataCard(title = stringResource(R.string.label_ev_range), modifier = modifier) {
+        Text(
+            Format.num(range, unit = stringResource(R.string.unit_km)),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.Bold,
+            color = color,
+        )
+        RangeAreaChart(history.map { it.electricRange }, color, Modifier.fillMaxWidth().height(90.dp))
+        LabeledBar(stringResource(R.string.text_battery), state.soc, MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.weight(1f))
+        MotorRpmBar(state)
+    }
+}
+
+/** Zero-based range history; missing samples break the area into separate segments. */
+@Composable
+private fun RangeAreaChart(points: List<Float?>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val max = points.filterNotNull().maxOrNull()?.coerceAtLeast(1f) ?: return@Canvas
+        if (points.size < 2) return@Canvas
+        val dx = size.width / (points.size - 1)
+        var start = -1
+        fun drawSegment(end: Int) {
+            if (start < 0 || end <= start) return
+            val area = Path()
+            val line = Path()
+            area.moveTo(start * dx, size.height)
+            for (i in start..end) {
+                val x = i * dx
+                val y = size.height * (1f - (points[i]!! / max).coerceIn(0f, 1f))
+                area.lineTo(x, y)
+                if (i == start) line.moveTo(x, y) else line.lineTo(x, y)
+            }
+            area.lineTo(end * dx, size.height)
+            area.close()
+            drawPath(area, color.copy(alpha = 0.20f))
+            drawPath(line, color, style = Stroke(width = 2.dp.toPx()))
+        }
+        points.forEachIndexed { index, value ->
+            if (value != null) {
+                if (start < 0) start = index
+            } else {
+                drawSegment(index - 1)
+                start = -1
+            }
+        }
+        drawSegment(points.lastIndex)
     }
 }
 
@@ -160,20 +266,20 @@ private fun combinedRange(state: VehicleState): Int? {
 
 /** Bottom bar: vertical legend left, chart center, status pills right. */
 @Composable
-private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistorySample>) {
+private fun TrendStrip(state: VehicleState, history: List<MainViewModel.HistorySample>, evOnly: Boolean) {
     val scheme = MaterialTheme.colorScheme
     // Plot available engine and motor RPM separately. A separate primary RPM line
     // would duplicate engine RPM when the engine is present.
     val series = buildList {
         add(ChartSeries(stringResource(R.string.text_power), stringResource(R.string.unit_power), scheme.secondary, history.map { it.power }, baseline = 0f))
-        if (history.any { it.engineRpm != null }) {
+        if (!evOnly && history.any { it.engineRpm != null }) {
             add(ChartSeries(stringResource(R.string.text_engine), stringResource(R.string.unit_rpm), scheme.error, history.map { it.engineRpm }, baseline = 0f))
         }
         if (history.any { it.motorRpm != null }) {
             add(ChartSeries(stringResource(R.string.text_motor), stringResource(R.string.unit_rpm), scheme.primary, history.map { it.motorRpm }, baseline = 0f))
         }
         // Fall back to primary RPM if neither separate RPM is available.
-        if (size == 1 && history.any { it.rpm != null }) {
+        if (!evOnly && size == 1 && history.any { it.rpm != null }) {
             add(ChartSeries(stringResource(R.string.unit_label_rpm), stringResource(R.string.unit_rpm), scheme.primary, history.map { it.rpm }, baseline = 0f))
         }
     }

@@ -62,6 +62,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
         /** Primary RPM (engine when available, otherwise motor) for single-series charts. */
         val rpm: Float?,
         val soc: Float?,
+        val electricRange: Float?,
         /** Engine RPM: hybrid vehicles provide a value only when the engine is active. */
         val engineRpm: Float?,
         /** Motor RPM (larger absolute value of front and rear), stored separately from [engineRpm]
@@ -75,6 +76,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
                 power = s.batteryPower ?: s.power,
                 rpm = s.displayRpm?.toFloat(),
                 soc = s.soc,
+                electricRange = s.remainRangeElec?.toFloat(),
                 engineRpm = s.engineRpm?.toFloat(),
                 motorRpm = listOfNotNull(s.motorRpmFront, s.motorRpmRear)
                     .maxByOrNull { kotlin.math.abs(it) }?.toFloat(),
@@ -157,6 +159,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app), AcActions {
     fun setRefreshInterval(ms: Long) = settings.setRefreshInterval(ms)
 
     fun setSourceMode(mode: SourceMode) = settings.setSourceMode(mode)
+
+    val evOnly = settings.evOnly
+    fun setEvOnly(enabled: Boolean) = settings.setEvOnly(enabled)
 
     val twin3dEnabled = settings.twin3dEnabled
 
